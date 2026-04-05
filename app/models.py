@@ -2,6 +2,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import Enum
 
 db = SQLAlchemy()
 
@@ -14,6 +15,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    last_active = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     profile = db.relationship("Profile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     matches_sent = db.relationship("Match", foreign_keys="Match.sender_id", back_populates="sender", cascade="all, delete-orphan")
@@ -26,6 +28,7 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
 
 class Interest(db.Model):
     __tablename__ = "interest"
@@ -53,6 +56,9 @@ class Profile(db.Model):
     education_level = db.Column(db.String(50))
     height_cm = db.Column(db.SmallInteger)
     relationship_goal = db.Column(db.String(50))
+    hobbies = db.Column(db.Text)
+    languages = db.Column(db.String(100))
+    social_links = db.Column(db.Text)
     is_public = db.Column(db.Boolean, default=True, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -77,8 +83,12 @@ class Match(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sender_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
     receiver_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
-    status = db.Column(db.String(20), default="liked", nullable=False)
+    status = db.Column(Enum("liked", "matched", "blocked", name="match_status"), default="liked", nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("sender_id", "receiver_id", name="uq_match_sender_receiver"),
+    )
 
     sender = db.relationship("User", foreign_keys=[sender_id], back_populates="matches_sent")
     receiver = db.relationship("User", foreign_keys=[receiver_id], back_populates="matches_received")
@@ -92,7 +102,7 @@ class Message(db.Model):
     match_id = db.Column(db.Integer, db.ForeignKey("match.id", ondelete="CASCADE"), nullable=False)
     sender_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     match = db.relationship("Match", back_populates="messages")
     sender = db.relationship("User", back_populates="messages")
@@ -105,6 +115,10 @@ class Favourite(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
     profile_id = db.Column(db.Integer, db.ForeignKey("profile.id", ondelete="CASCADE"), nullable=False)
     saved_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "profile_id", name="uq_user_profile_favourite"),
+    )
 
     user = db.relationship("User", back_populates="favourites")
     profile = db.relationship("Profile", back_populates="favourites")
