@@ -1,7 +1,7 @@
 <template>
   <div class="home-page">
     <header class="hero">
-      <h1>Welcome to LoveConnect</h1>
+      <h1>Welcome to The Dating App</h1>
       <p>
         Find meaningful connections, meet new people, and start your journey
         today.
@@ -17,17 +17,15 @@
     <section class="features">
       <div class="feature">
         <h3>Discover Matches</h3>
-        <p>Swipe, like, and connect with people who share your interests.</p>
+        <p>Text will be added here.</p>
       </div>
       <div class="feature">
         <h3>Chat Securely</h3>
-        <p>
-          Message your matches in real time with privacy and security built in.
-        </p>
+        <p>Text will be added here.</p>
       </div>
       <div class="feature">
         <h3>Personalize Your Profile</h3>
-        <p>Show off your personality with photos, bios, and interests.</p>
+        <p>Text will be added here.</p>
       </div>
     </section>
   </div>

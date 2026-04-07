@@ -3,8 +3,7 @@ from datetime import datetime
 from flask_login import UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum
-
-db = SQLAlchemy()
+from .db import db
 
 class User(UserMixin, db.Model):
     __tablename__ = "user"
