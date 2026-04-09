@@ -41,7 +41,7 @@
 
 <script setup>
 import { ref } from "vue";
-// import axios from "axios";
+import axios from "axios";
 import { useRouter } from "vue-router";
 
 const email = ref("");
@@ -56,18 +56,24 @@ const handleSignup = async () => {
     return;
   }
   try {
-    const response = await axios.post("/signup", {
+    const response = await axios.post("/api/signup", {
       email: email.value,
       username: username.value,
       password: password.value,
+      confirm_password: confirmPassword.value,
     });
-    if (response.data.success) {
+    if (response.status === 201) {
+      alert("Account created successfully! Please log in.");
       router.push("/login");
-    } else {
-      alert(response.data.message || "Signup failed");
     }
   } catch (err) {
-    alert("Error signing up");
+    if (err.response && err.response.data.errors) {
+      alert("Validation errors: " + JSON.stringify(err.response.data.errors));
+    } else {
+      alert(
+        "Signup failed: " + (err.response?.data?.message || "Unknown error"),
+      );
+    }
   }
 };
 </script>

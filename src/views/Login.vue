@@ -23,7 +23,7 @@
 
 <script setup>
 import { ref } from "vue";
-// import axios from "axios";
+import axios from "axios";
 import { useRouter } from "vue-router";
 
 const email = ref("");
@@ -32,17 +32,24 @@ const router = useRouter();
 
 const handleLogin = async () => {
   try {
-    const response = await axios.post("http://localhost:8080/login", {
-      email: email.value,
-      password: password.value,
-    });
-    if (response.data.success) {
+    const response = await axios.post(
+      "/api/login",
+      {
+        email: email.value,
+        password: password.value,
+      },
+      { withCredentials: true },
+    );
+    console.log(email.value + password.value);
+    if (response.status === 200) {
       router.push("/dashboard");
-    } else {
-      alert(response.data.message || "Login failed");
     }
   } catch (err) {
-    alert("Error logging in");
+    if (err.response && err.response.data.errors) {
+      alert("Validation errors: " + JSON.stringify(err.response.data.errors));
+    } else {
+      alert("Login failed: " + (err.response?.data?.error || "Unknown error"));
+    }
   }
 };
 </script>

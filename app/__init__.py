@@ -1,21 +1,20 @@
 from flask import Flask
+from flask_cors import CORS
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 from .config import Config
 from flask_migrate import Migrate
 from .model import db
-
+from flask_wtf.csrf import CSRFProtect
 
 import os
 
 app = Flask(__name__)
-app.config.from_object(Config)
+app.config.from_object(Config)  # Load config first
+app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF globally
+CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
 
-# Ensure upload directory exists
-upload_dir = os.path.join(app.root_path, 'static', 'uploads')
-os.makedirs(upload_dir, exist_ok=True)
-
-db.init_app(app)
+db.init_app(app)  # Initialize db after config
 migrate = Migrate(app, db)
 
 

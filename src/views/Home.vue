@@ -1,7 +1,7 @@
 <template>
   <div class="home-page">
     <header class="hero">
-      <h1>Welcome to The Dating App</h1>
+      <h1>Welcome to LoveLink</h1>
       <p>
         Find meaningful connections, meet new people, and start your journey
         today.

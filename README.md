@@ -1,40 +1,262 @@
-# INFO3180 VueJS and Flask Starter
+# LoveLink - Dating App
 
-This template should help get you started developing with Vue 3 on the frontend and Flask as an API on the backend.
+A modern dating application built with Vue.js 3 frontend and Flask REST API backend. Features user authentication, profiles, matching, messaging, and social features.
 
-## Recommended IDE Setup
+## 🚀 Features
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.volar) (and disable Vetur) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.vscode-typescript-vue-plugin).
+- **User Authentication**: Secure signup/login with Flask-Login
+- **User Profiles**: Comprehensive profile management with photos
+- **Matching System**: Find compatible matches based on preferences
+- **Real-time Messaging**: Chat with matches
+- **Photo Uploads**: Profile picture management
+- **Responsive Design**: Mobile-friendly Vue.js interface
 
-## Customize configuration
+## 🛠 Tech Stack
 
-See [Vite Configuration Reference](https://vitejs.dev/config/).
+### Backend
 
-## Project Setup
+- **Flask** - Python web framework
+- **Flask-SQLAlchemy** - Database ORM
+- **Flask-Migrate** - Database migrations
+- **Flask-Login** - User authentication
+- **Flask-WTF** - Form handling
+- **PostgreSQL** - Database
 
-```sh
-npm install
+### Frontend
+
+- **Vue.js 3** - Progressive JavaScript framework
+- **Vue Router** - Single-page application routing
+- **Axios** - HTTP client for API calls
+- **Vite** - Fast build tool
+
+## 📋 Prerequisites
+
+- Python 3.8+
+- Node.js 16+
+- PostgreSQL database
+
+## 🔧 Installation & Setup
+
+### Backend Setup
+
+1. **Clone the repository**
+
+   ```bash
+   git clone <repository-url>
+   cd INFO3180-MAIN-GROUP-PROJECT
+   ```
+
+2. **Create virtual environment**
+
+   ```bash
+   python -m venv venv
+   # Windows
+   venv\Scripts\activate
+   # macOS/Linux
+   source venv/bin/activate
+   ```
+
+3. **Install Python dependencies**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Database setup**
+
+   ```bash
+   # Set environment variables (create .env file)
+   export FLASK_APP=app
+   export FLASK_ENV=development
+   export DATABASE_URL=postgresql://username:password@localhost/dating_app
+
+   # Initialize database
+   flask db init
+   flask db migrate
+   flask db upgrade
+   ```
+
+5. **Run Flask API**
+   ```bash
+   flask run
+   ```
+   API will be available at `http://localhost:5000`
+
+### Frontend Setup
+
+1. **Install Node dependencies**
+
+   ```bash
+   npm install
+   ```
+
+2. **Install Axios for API calls**
+
+   ```bash
+   npm install axios
+   ```
+
+3. **Start development server**
+   ```bash
+   npm run dev
+   ```
+   Frontend will be available at `http://localhost:5173`
+
+## 📚 API Documentation
+
+### Authentication Endpoints
+
+#### POST `/api/signup`
+
+Register a new user account.
+
+**Request Body:**
+
+```json
+{
+  "email": "user@example.com",
+  "username": "johndoe",
+  "password": "securepassword",
+  "confirm_password": "securepassword"
+}
 ```
 
-### Compile and Hot-Reload for Development
+**Response:**
 
-```sh
-npm run dev
+```json
+{
+  "message": "Account created successfully!",
+  "user_id": 1
+}
 ```
 
-### Compile and Minify for Production
+#### POST `/api/login`
 
-```sh
-npm run build
+Authenticate user login.
+
+**Request Body:**
+
+```json
+{
+  "email": "user@example.com",
+  "password": "securepassword"
+}
 ```
 
-## Start Flask API
+**Response:**
 
-Remember to always create a virtual environment and install the packages in your requirements file
+```json
+{
+  "message": "Logged in successfully!",
+  "user_id": 1
+}
+```
+
+#### POST `/api/logout`
+
+Logout current user.
+
+**Response:**
+
+```json
+{
+  "message": "Logged out successfully!"
+}
+```
+
+### Profile Endpoints
+
+#### GET `/api/profile`
+
+Get current user's profile.
+
+**Response:**
+
+```json
+{
+  "first_name": "John",
+  "last_name": "Doe",
+  "date_of_birth": "1990-01-01",
+  "gender": "male",
+  "bio": "Hello world!",
+  "location": "New York",
+  "occupation": "Developer",
+  "education_level": "Bachelor's",
+  "relationship_goal": "Long-term"
+}
+```
+
+#### POST `/api/profile`
+
+Update user profile.
+
+**Request Body:**
+
+```json
+{
+  "first_name": "John",
+  "last_name": "Doe",
+  "bio": "Updated bio",
+  "location": "New York"
+}
+```
+
+### Other Endpoints
+
+- `POST /api/upload-photo` - Upload profile picture
+- `POST /api/password-reset` - Request password reset
+- `GET/POST /api/preferences` - Manage match preferences
+- `POST /api/message` - Send messages
+- `POST /api/report` - Report users
+
+## 🏗 Project Structure
+
+```
+├── app/                    # Flask backend
+│   ├── __init__.py        # App factory
+│   ├── model.py           # Database models
+│   ├── forms.py           # WTForms
+│   ├── views.py           # API routes
+│   └── config.py          # Configuration
+├── src/                    # Vue.js frontend
+│   ├── views/             # Page components
+│   ├── components/        # Reusable components
+│   ├── router/            # Vue Router config
+│   └── main.js            # App entry point
+├── public/                 # Static assets
+├── requirements.txt        # Python dependencies
+└── package.json           # Node dependencies
+```
+
+## 🚀 Deployment
+
+### Backend Deployment
 
 ```bash
-$ python -m venv venv (you may need to use python3 instead)
-$ source venv/bin/activate (or .\venv\Scripts\activate on Windows)
-$ pip install -r requirements.txt
-$ flask --app app --debug run
+# Production settings
+export FLASK_ENV=production
+export DATABASE_URL=your_production_db_url
+
+# Run with Gunicorn
+gunicorn -w 4 -b 0.0.0.0:8000 app:app
 ```
+
+### Frontend Deployment
+
+```bash
+npm run build
+# Deploy dist/ folder to your web server
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+Set u
