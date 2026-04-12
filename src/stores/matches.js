@@ -3,117 +3,82 @@ import { ref } from 'vue'
 import api from '../services/api'
 
 export const useMatchesStore = defineStore('matches', () => {
-  // State
   const matches = ref([])
   const potentialMatches = ref([])
   const loading = ref(false)
   const error = ref(null)
 
-  // Get all matches for current user
+  // GET /api/matches — mutual matches
   async function fetchMatches() {
     loading.value = true
     error.value = null
     try {
-      const response = await api.get('/matches')
+      const response = await api.get('/api/matches')
       matches.value = response.data
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to fetch matches'
+      error.value = err.response?.data?.errors?.[0] || 'Failed to fetch matches'
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // Get potential matches (browse mode)
+  // GET /api/matches/potential
   async function fetchPotentialMatches() {
     loading.value = true
     error.value = null
     try {
-      const response = await api.get('/matches/potential')
+      const response = await api.get('/api/matches/potential')
       potentialMatches.value = response.data
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to fetch potential matches'
+      error.value = err.response?.data?.errors?.[0] || 'Failed to fetch potential matches'
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // Like a user
+  // POST /api/matches/like/<user_id>
   async function likeUser(userId) {
     loading.value = true
     error.value = null
     try {
-      const response = await api.post(`/matches/like/${userId}`)
-      // remove from potential matches after liking
-      potentialMatches.value = potentialMatches.value.filter(
-        match => match.id !== userId
-      )
-      // if mutual match add to matches
+      const response = await api.post(`/api/matches/like/${userId}`)
+      potentialMatches.value = potentialMatches.value.filter(m => m.user_id !== userId)
       if (response.data.matched) {
-        matches.value.push(response.data.match)
+        await fetchMatches()
       }
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to like user'
+      error.value = err.response?.data?.errors?.[0] || 'Failed to like user'
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // Pass/Dislike a user
+  // POST /api/matches/pass/<user_id>
   async function passUser(userId) {
     loading.value = true
     error.value = null
     try {
-      await api.post(`/matches/pass/${userId}`)
-      // remove from potential matches after passing
-      potentialMatches.value = potentialMatches.value.filter(
-        match => match.id !== userId
-      )
+      await api.post(`/api/matches/pass/${userId}`)
+      potentialMatches.value = potentialMatches.value.filter(m => m.user_id !== userId)
     } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to pass user'
+      error.value = err.response?.data?.errors?.[0] || 'Failed to pass user'
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // Check if two users are matched
-  async function checkMatch(userId) {
-    loading.value = true
-    error.value = null
-    try {
-      const response = await api.get(`/matches/check/${userId}`)
-      return response.data
-    } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to check match'
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
-  // Clear matches
   function clearMatches() {
     matches.value = []
     potentialMatches.value = []
     error.value = null
   }
 
-  return {
-    matches,
-    potentialMatches,
-    loading,
-    error,
-    fetchMatches,
-    fetchPotentialMatches,
-    likeUser,
-    passUser,
-    checkMatch,
-    clearMatches
-  }
+  return { matches, potentialMatches, loading, error, fetchMatches, fetchPotentialMatches, likeUser, passUser, clearMatches }
 })

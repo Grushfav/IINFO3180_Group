@@ -1,86 +1,129 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import api from '../services/api'
+import { useAuthStore } from './auth'
 
 export const useProfileStore = defineStore('profile', () => {
-  // State
   const profile = ref(null)
   const loading = ref(false)
   const error = ref(null)
 
-  // Get current user's profile
-  async function fetchProfile(userId) {
+  // ── Fetch logged-in user's profile ────────────────────────────────────────
+  // Backend: GET /api/profile
+  async function fetchProfile() {
     loading.value = true
     error.value = null
     try {
-      const response = await api.get(`/users/${userId}`)
-      profile.value = response.data
-      return response.data
+      const response = await api.get('/api/profile')
+      profile.value = normalizeProfile(response.data)
+      return profile.value
     } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to fetch profile'
+      error.value = err.response?.data?.errors?.[0] || 'Failed to fetch profile'
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // Update profile
-  async function updateProfile(userId, formData) {
+  // ── Update profile ────────────────────────────────────────────────────────
+  // Backend: POST /api/profile
+  // Expects JSON: { first_name, last_name, date_of_birth, gender, bio,
+  //                 location, occupation, education_level, relationship_goal }
+  async function updateProfile(formData) {
     loading.value = true
     error.value = null
     try {
-      const response = await api.put(`/users/${userId}`, formData)
-      profile.value = response.data
+      // Convert camelCase frontend fields to snake_case backend fields
+      const payload = {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        date_of_birth: formData.dateOfBirth,
+        gender: formData.gender,
+        bio: formData.bio,
+        location: formData.location,
+        occupation: formData.occupation,
+        education_level: formData.educationLevel,
+        relationship_goal: formData.relationshipGoal,
+      }
+      const response = await api.post('/api/profile', payload)
+      // Refresh auth store user so header updates
+      const auth = useAuthStore()
+      await auth.fetchCurrentUser()
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to update profile'
+      error.value = err.response?.data?.errors?.[0] || 'Failed to update profile'
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // Upload profile picture
-  async function uploadProfilePicture(userId, imageFile) {
+  // ── Upload profile photo ──────────────────────────────────────────────────
+  // Backend: POST /api/upload-photo
+  async function uploadProfilePicture(imageFile) {
     loading.value = true
     error.value = null
     try {
-      const formData = new FormData()
-      formData.append('photo', imageFile)
-      const response = await api.post(`/users/${userId}/photo`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+      const fd = new FormData()
+      fd.append('photo', imageFile)
+      const response = await api.post('/api/upload-photo', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       })
-      profile.value.photo = response.data.photo
+      // Refresh to get updated photo URL
+      const auth = useAuthStore()
+      await auth.fetchCurrentUser()
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to upload photo'
+      error.value = err.response?.data?.errors?.[0] || 'Failed to upload photo'
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // View another user's profile
+  // ── View another user's profile ───────────────────────────────────────────
+  // Backend: GET /api/users/<user_id>  (needs to be added — see notes)
   async function fetchUserProfile(userId) {
     loading.value = true
     error.value = null
     try {
-      const response = await api.get(`/users/${userId}`)
-      return response.data
+      const response = await api.get(`/api/users/${userId}`)
+      return normalizeProfile(response.data)
     } catch (err) {
-      error.value = err.response?.data?.message || 'Failed to fetch user profile'
+      error.value = err.response?.data?.errors?.[0] || 'Failed to fetch user profile'
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  // Clear profile
   function clearProfile() {
     profile.value = null
     error.value = null
+  }
+
+  // Normalize snake_case backend response to camelCase for the views
+  function normalizeProfile(data) {
+    return {
+      id: data.id,
+      userId: data.user_id,
+      firstName: data.first_name || '',
+      lastName: data.last_name || '',
+      dateOfBirth: data.date_of_birth || '',
+      gender: data.gender || '',
+      lookingFor: data.looking_for || 'any',
+      bio: data.bio || '',
+      location: data.location || '',
+      photo: data.profile_photo
+        ? `http://localhost:5000/static/uploads/${data.profile_photo}`
+        : null,
+      occupation: data.occupation || '',
+      educationLevel: data.education_level || '',
+      heightCm: data.height_cm || null,
+      relationshipGoal: data.relationship_goal || '',
+      interests: data.interests || [],
+      isPublic: data.is_public !== false,
+    }
   }
 
   return {
@@ -91,6 +134,6 @@ export const useProfileStore = defineStore('profile', () => {
     updateProfile,
     uploadProfilePicture,
     fetchUserProfile,
-    clearProfile
+    clearProfile,
   }
 })
