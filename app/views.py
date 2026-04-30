@@ -1,52 +1,87 @@
 """
-Flask Documentation:     https://flask.palletsprojects.com/
-Jinja2 Documentation:    https://jinja.palletsprojects.com/
-Werkzeug Documentation:  https://werkzeug.palletsprojects.com/
-This file creates your application.
+Flask API views for DriftDater
 """
 
 from . import app
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import request, jsonify, send_from_directory
 from flask_login import login_user, logout_user, login_required, current_user
-from werkzeug.security import generate_password_hash
-from .model import db, User, Profile
-from .forms import SignupForm, LoginForm, ProfileForm, PasswordResetForm, PhotoUploadForm, PreferenceForm, MessageForm, ReportForm
+from .db import db
+from .model import User, Profile, Interest, ProfileInterest, Match, Message, Favourite
+from .forms import SignupForm, LoginForm, ProfileForm, PhotoUploadForm
 from datetime import datetime, date
 import os
+import math
+from sqlalchemy import or_, and_
+from sqlalchemy.exc import IntegrityError
+
 
 def form_errors(form):
-    """Collects form errors"""
     error_messages = []
     for field, errors in form.errors.items():
         for error in errors:
-            message = u"Error in the %s field - %s" % (
-                    getattr(form, field).label.text,
-                    error
-                )
+            message = "Error in the %s field - %s" % (
+                getattr(form, field).label.text, error)
             error_messages.append(message)
     return error_messages
 
 
-###
-# Routing for your application.
-###
+def safe_rollback():
+    """Rollback without masking the original exception."""
+    try:
+        db.session.rollback()
+    except Exception:
+        app.logger.exception("Rollback failed")
 
+
+def profile_to_dict(profile, include_user=False):
+    """Serialize a Profile + its User to a dict the frontend expects."""
+    age = None
+    if profile.date_of_birth:
+        today = date.today()
+        dob = profile.date_of_birth
+        age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+    interests = [pi.interest.name for pi in profile.interests]
+
+    data = {
+        "id": profile.id,
+        "user_id": profile.user_id,
+        "first_name": profile.first_name,
+        "last_name": profile.last_name,
+        "date_of_birth": profile.date_of_birth.isoformat() if profile.date_of_birth else None,
+        "age": age,
+        "gender": profile.gender,
+        "looking_for": profile.looking_for,
+        "bio": profile.bio,
+        "location": profile.location,
+        "profile_photo": profile.profile_photo,
+        "occupation": profile.occupation,
+        "education_level": profile.education_level,
+        "height_cm": profile.height_cm,
+        "relationship_goal": profile.relationship_goal,
+        "preferred_min_age": profile.preferred_min_age,
+        "preferred_max_age": profile.preferred_max_age,
+        "max_distance_km": profile.max_distance_km,
+        "latitude": profile.latitude,
+        "longitude": profile.longitude,
+        "interests": interests,
+        "is_public": profile.is_public,
+    }
+
+    if include_user and profile.user:
+        data["username"] = profile.user.username
+        data["email"] = profile.user.email
+
+    return data
+
+
+# ── Health check ──────────────────────────────────────────────────────────────
 @app.route('/')
 def index():
-    return jsonify(message="This is the beginning of our API")
+    return jsonify(message="DriftDater API is running")
 
 
-###
-# The functions below should be applicable to all Flask apps.
-###
-
-# Here we define a function to collect form errors from Flask-WTF
-# which we can later use
-
-
-
-
-
+# ── Auth ──────────────────────────────────────────────────────────────────────
 
 @app.route("/api/signup", methods=["POST"])
 def signup():
@@ -54,38 +89,41 @@ def signup():
         data = request.get_json()
         if not data:
             return jsonify({"errors": ["No JSON data provided"]}), 400
-        
+
         form = SignupForm(data=data, meta={'csrf': False})
         if form.validate():
             user = User(email=form.email.data, username=form.username.data)
             user.set_password(form.password.data)
             db.session.add(user)
-            db.session.commit()
+            db.session.flush()  # Get the user.id before committing
 
-            # Parse date_of_birth if provided
-            dob = date(2000, 1, 1)  # Default date
+            dob = date(2000, 1, 1)
             dob_str = data.get("date_of_birth")
             if dob_str:
                 try:
                     dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
                 except ValueError:
-                    return jsonify({"errors": ["Invalid date format for date_of_birth, use YYYY-MM-DD"]}), 400
-            
-            # Create a starter profile
+                    return jsonify({"errors": ["Invalid date format, use YYYY-MM-DD"]}), 400
+
             profile = Profile(
                 user_id=user.id,
                 first_name=data.get("first_name", ""),
                 last_name=data.get("last_name", ""),
-                date_of_birth=dob,  
-                gender=data.get("gender", "unspecified")
+                date_of_birth=dob,
+                gender=data.get("gender", "other"),
+                looking_for=data.get("looking_for", "any"),
             )
             db.session.add(profile)
             db.session.commit()
 
             return jsonify({"message": "Account created successfully!", "user_id": user.id}), 201
         return jsonify({"errors": form_errors(form)}), 400
+    except IntegrityError:
+        safe_rollback()
+        return jsonify({"errors": ["Email or username already exists"]}), 409
     except Exception as e:
-        db.session.rollback()
+        safe_rollback()
+        app.logger.exception("Signup failed")
         return jsonify({"errors": [str(e)]}), 500
 
 
@@ -95,15 +133,20 @@ def login():
         data = request.get_json()
         if not data:
             return jsonify({"errors": ["No JSON data provided"]}), 400
-        
+
         form = LoginForm(data=data, meta={'csrf': False})
         if form.validate():
             user = User.query.filter_by(email=form.email.data).first()
             if user and user.check_password(form.password.data):
                 login_user(user, remember=form.remember.data)
-                return jsonify({"message": "Logged in successfully!", "user_id": user.id}), 200
-            else:
-                return jsonify({"error": "Invalid email or password"}), 401
+                # Update last_active
+                user.last_active = datetime.utcnow()
+                db.session.commit()
+                return jsonify({
+                    "message": "Logged in successfully!",
+                    "user_id": user.id
+                }), 200
+            return jsonify({"error": "Invalid email or password"}), 401
         return jsonify({"errors": form_errors(form)}), 400
     except Exception as e:
         return jsonify({"errors": [str(e)]}), 500
@@ -116,71 +159,86 @@ def logout():
     return jsonify({"message": "Logged out successfully!"}), 200
 
 
+# ── Profile ───────────────────────────────────────────────────────────────────
+
 @app.route("/api/profile", methods=["GET", "POST"])
 @login_required
 def profile():
     try:
-        if request.method == "POST":
-            data = request.get_json()
-            if not data:
-                return jsonify({"errors": ["No JSON data provided"]}), 400
-            
-            form = ProfileForm(data=data, meta={'csrf': False})
-            if form.validate():
-                user_profile = current_user.profile
-                user_profile.first_name = form.first_name.data
-                user_profile.last_name = form.last_name.data
-                
-                # Parse date_of_birth properly
-                dob_str = data.get("date_of_birth")
-                if dob_str:
-                    try:
-                        user_profile.date_of_birth = datetime.strptime(dob_str, "%Y-%m-%d").date()
-                    except (ValueError, TypeError):
-                        return jsonify({"errors": ["Invalid date format for date_of_birth, use YYYY-MM-DD"]}), 400
-                
-                user_profile.gender = form.gender.data
-                user_profile.bio = form.bio.data
-                user_profile.location = form.location.data
-                user_profile.occupation = form.occupation.data
-                user_profile.education_level = form.education_level.data
-                user_profile.relationship_goal = form.relationship_goal.data
-                db.session.commit()
-                return jsonify({"message": "Profile updated successfully!"}), 200
-            return jsonify({"errors": form_errors(form)}), 400
-        else:
-            user_profile = current_user.profile
-            return jsonify({
-                "first_name": user_profile.first_name,
-                "last_name": user_profile.last_name,
-                "date_of_birth": user_profile.date_of_birth.isoformat() if user_profile.date_of_birth else None,
-                "gender": user_profile.gender,
-                "bio": user_profile.bio,
-                "location": user_profile.location,
-                "occupation": user_profile.occupation,
-                "education_level": user_profile.education_level,
-                "relationship_goal": user_profile.relationship_goal
-            }), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"errors": [str(e)]}), 500
+        if request.method == "GET":
+            p = current_user.profile
+            if not p:
+                return jsonify({"errors": ["Profile not found"]}), 404
+            return jsonify(profile_to_dict(p, include_user=True)), 200
 
-
-@app.route("/api/password-reset", methods=["POST"])
-def password_reset():
-    try:
+        # POST — update profile
         data = request.get_json()
         if not data:
             return jsonify({"errors": ["No JSON data provided"]}), 400
-        
-        form = PasswordResetForm(data=data, meta={'csrf': False})
+
+        form = ProfileForm(data=data, meta={'csrf': False})
         if form.validate():
-            user = User.query.filter_by(email=form.email.data).first()
-            if user:
-                return jsonify({"message": "Password reset email sent!"}), 200
-            return jsonify({"error": "Email not found"}), 404
+            p = current_user.profile
+            p.first_name = form.first_name.data
+            p.last_name = form.last_name.data
+            p.gender = form.gender.data
+            p.bio = form.bio.data
+            p.location = form.location.data
+            p.occupation = form.occupation.data
+            p.education_level = form.education_level.data
+            p.relationship_goal = form.relationship_goal.data
+            p.preferred_min_age = form.preferred_min_age.data or p.preferred_min_age
+            p.preferred_max_age = form.preferred_max_age.data or p.preferred_max_age
+            p.max_distance_km = form.max_distance_km.data or p.max_distance_km
+            p.updated_at = datetime.utcnow()
+
+            if p.preferred_min_age and p.preferred_max_age and p.preferred_min_age > p.preferred_max_age:
+                return jsonify({"errors": ["Preferred min age cannot exceed preferred max age"]}), 400
+
+            dob_str = data.get("date_of_birth")
+            if dob_str:
+                try:
+                    p.date_of_birth = datetime.strptime(dob_str, "%Y-%m-%d").date()
+                except ValueError:
+                    return jsonify({"errors": ["Invalid date format"]}), 400
+
+            # Handle looking_for (not in ProfileForm but sent by frontend)
+            if data.get("looking_for"):
+                p.looking_for = data["looking_for"]
+
+            if "is_public" in data:
+                p.is_public = bool(data["is_public"])
+            if "latitude" in data:
+                p.latitude = data["latitude"]
+            if "longitude" in data:
+                p.longitude = data["longitude"]
+
+            # Handle interests array
+            if "interests" in data:
+                cleaned_interests = [
+                    name.strip().lower()
+                    for name in data["interests"]
+                    if isinstance(name, str) and name.strip()
+                ]
+                if len(cleaned_interests) < 3:
+                    return jsonify({"errors": ["Please add at least 3 interests"]}), 400
+
+                # Clear existing
+                ProfileInterest.query.filter_by(profile_id=p.id).delete()
+                for name in cleaned_interests:
+                    interest = Interest.query.filter_by(name=name).first()
+                    if not interest:
+                        interest = Interest(name=name)
+                        db.session.add(interest)
+                        db.session.flush()
+                    pi = ProfileInterest(profile_id=p.id, interest_id=interest.id)
+                    db.session.add(pi)
+
+            db.session.commit()
+            return jsonify({"message": "Profile updated successfully!"}), 200
         return jsonify({"errors": form_errors(form)}), 400
     except Exception as e:
+        db.session.rollback()
         return jsonify({"errors": [str(e)]}), 500
 
 
@@ -190,96 +248,503 @@ def upload_photo():
     try:
         if 'photo' not in request.files:
             return jsonify({"errors": ["No photo file provided"]}), 400
-        
         photo = request.files['photo']
         if photo.filename == '':
             return jsonify({"errors": ["No file selected"]}), 400
-        
-        # Save the photo file
-        filename = f"{current_user.id}_profile.jpg"
+
+        # Only allow images
+        allowed = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        ext = photo.filename.rsplit('.', 1)[-1].lower()
+        if ext not in allowed:
+            return jsonify({"errors": ["File type not allowed"]}), 400
+
+        filename = f"user_{current_user.id}_profile.{ext}"
         upload_dir = os.path.join(app.root_path, 'static', 'uploads')
         os.makedirs(upload_dir, exist_ok=True)
         photo.save(os.path.join(upload_dir, filename))
-        
-        # Update profile with photo path
+
         current_user.profile.profile_photo = filename
         db.session.commit()
-        
-        return jsonify({"message": "Photo uploaded successfully!", "photo_url": f"/static/uploads/{filename}"}), 200
+
+        return jsonify({
+            "message": "Photo uploaded successfully!",
+            "photo_url": f"/static/uploads/{filename}"
+        }), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"errors": [str(e)]}), 500
 
-@app.route("/api/preferences", methods=["GET", "POST"])
+
+# ── Users (browse / search) ───────────────────────────────────────────────────
+
+@app.route("/api/users", methods=["GET"])
 @login_required
-def preferences():
+def get_users():
+    """
+    Browse / search users.
+    Query params: name, location, age_min, age_max, gender, interests
+    Returns users whose profiles are public and excludes the current user.
+    """
     try:
-        if request.method == "POST":
-            data = request.get_json()
-            if not data:
-                return jsonify({"errors": ["No JSON data provided"]}), 400
-            
-            form = PreferenceForm(data=data, meta={'csrf': False})
-            if form.validate():
-                # TODO: Save preferences to database
-                return jsonify({"message": "Preferences saved!"}), 200
-            return jsonify({"errors": form_errors(form)}), 400
+        query = Profile.query.join(User).filter(
+            Profile.user_id != current_user.id,
+            Profile.is_public == True
+        )
+
+        name = request.args.get("name")
+        if name:
+            query = query.filter(
+                or_(
+                    Profile.first_name.ilike(f"%{name}%"),
+                    Profile.last_name.ilike(f"%{name}%"),
+                    Profile.bio.ilike(f"%{name}%"),
+                )
+            )
+
+        location = request.args.get("location")
+        if location:
+            query = query.filter(Profile.location.ilike(f"%{location}%"))
+
+        gender = request.args.get("gender")
+        if gender:
+            query = query.filter(Profile.gender == gender)
+
+        profiles = query.all()
+
+        # Filter by age range in Python (age is calculated, not stored)
+        age_min = request.args.get("age_min", type=int)
+        age_max = request.args.get("age_max", type=int)
+
+        def get_age(p):
+            if not p.date_of_birth:
+                return 0
+            today = date.today()
+            dob = p.date_of_birth
+            return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+        if age_min:
+            profiles = [p for p in profiles if get_age(p) >= age_min]
+        if age_max:
+            profiles = [p for p in profiles if get_age(p) <= age_max]
+
+        # Filter by interests
+        interests_param = request.args.get("interests")
+        if interests_param:
+            wanted = [i.strip().lower() for i in interests_param.split(",")]
+            profiles = [
+                p for p in profiles
+                if any(pi.interest.name in wanted for pi in p.interests)
+            ]
+
+        sort_by = request.args.get("sort_by", "newest")
+        if sort_by == "age_asc":
+            profiles.sort(key=lambda p: get_age(p))
+        elif sort_by == "age_desc":
+            profiles.sort(key=lambda p: get_age(p), reverse=True)
+        elif sort_by == "name_asc":
+            profiles.sort(key=lambda p: (p.first_name or "", p.last_name or ""))
         else:
-            # Return current preferences
-            return jsonify({"min_age": 18, "max_age": 99, "gender": "any", "location": ""}), 200
+            profiles.sort(key=lambda p: p.updated_at or datetime.min, reverse=True)
+
+        result = [profile_to_dict(p) for p in profiles]
+        return jsonify(result), 200
     except Exception as e:
         return jsonify({"errors": [str(e)]}), 500
 
 
-@app.route("/api/message", methods=["POST"])
+@app.route("/api/users/<int:user_id>", methods=["GET"])
 @login_required
-def send_message():
+def get_user(user_id):
+    """Get a specific user's public profile."""
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"errors": ["No JSON data provided"]}), 400
-        
-        form = MessageForm(data=data, meta={'csrf': False})
-        recipient_id = data.get('recipient_id')
-        
-        if form.validate() and recipient_id:
-            # TODO: Implement message storage
-            # message = Message(sender_id=current_user.id, recipient_id=recipient_id, text=form.text.data)
-            # db.session.add(message)
-            # db.session.commit()
-            return jsonify({"message": "Message sent!"}), 200
-        
-        if not recipient_id:
-            return jsonify({"errors": ["recipient_id is required"]}), 400
-        
-        return jsonify({"errors": form_errors(form)}), 400
+        profile = Profile.query.filter_by(user_id=user_id).first()
+        if not profile:
+            return jsonify({"error": "User not found"}), 404
+        if not profile.is_public and profile.user_id != current_user.id:
+            return jsonify({"error": "Profile is private"}), 403
+        return jsonify(profile_to_dict(profile)), 200
     except Exception as e:
         return jsonify({"errors": [str(e)]}), 500
 
 
-@app.route("/api/report", methods=["POST"])
+# ── Matches ───────────────────────────────────────────────────────────────────
+
+@app.route("/api/matches", methods=["GET"])
 @login_required
-def report_user():
+def get_matches():
+    """Get all mutual matches (both users liked each other)."""
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"errors": ["No JSON data provided"]}), 400
-        
-        form = ReportForm(data=data, meta={'csrf': False})
-        reported_user_id = data.get('reported_user_id')
-        
-        if form.validate() and reported_user_id:
-            # TODO: Implement report storage
-            # report = Report(reporter_id=current_user.id, reported_user_id=reported_user_id, reason=form.reason.data)
-            # db.session.add(report)
-            # db.session.commit()
-            return jsonify({"message": "User reported!"}), 200
-        
-        if not reported_user_id:
-            return jsonify({"errors": ["reported_user_id is required"]}), 400
-        
-        return jsonify({"errors": form_errors(form)}), 400
+        # A mutual match = status is 'matched'
+        matches = Match.query.filter(
+            or_(
+                Match.sender_id == current_user.id,
+                Match.receiver_id == current_user.id,
+            ),
+            Match.status == "matched"
+        ).all()
+
+        result = []
+        for m in matches:
+            other_user_id = m.receiver_id if m.sender_id == current_user.id else m.sender_id
+            other_profile = Profile.query.filter_by(user_id=other_user_id).first()
+            if other_profile:
+                result.append({
+                    "id": m.id,
+                    "matched_at": m.created_at.isoformat(),
+                    "user": profile_to_dict(other_profile)
+                })
+
+        return jsonify(result), 200
     except Exception as e:
         return jsonify({"errors": [str(e)]}), 500
 
 
+@app.route("/api/matches/potential", methods=["GET"])
+@login_required
+def get_potential_matches():
+    """
+    Get profiles the current user hasn't liked or passed yet.
+    Matching factors:
+    - gender preference
+    - preferred age range
+    - distance radius (when both users have coordinates)
+    - shared interests
+    - relationship-goal compatibility
+    """
+    try:
+        # IDs already acted on
+        acted_ids = db.session.query(Match.receiver_id).filter(
+            Match.sender_id == current_user.id
+        ).all()
+        acted_ids = {r[0] for r in acted_ids}
+        acted_ids.add(current_user.id)
+
+        my_profile = current_user.profile
+        target_gender = my_profile.looking_for if my_profile else "any"
+
+        query = Profile.query.join(User).filter(
+            Profile.user_id.notin_(acted_ids),
+            Profile.is_public == True
+        )
+
+        if target_gender and target_gender != "any":
+            query = query.filter(Profile.gender == target_gender)
+
+        profiles = query.order_by(Profile.updated_at.desc()).limit(20).all()
+
+        def get_age(p):
+            if not p.date_of_birth:
+                return None
+            today = date.today()
+            dob = p.date_of_birth
+            return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+        def haversine_km(lat1, lon1, lat2, lon2):
+            r = 6371  # Earth radius in km
+            phi1 = math.radians(lat1)
+            phi2 = math.radians(lat2)
+            d_phi = math.radians(lat2 - lat1)
+            d_lam = math.radians(lon2 - lon1)
+            a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lam / 2) ** 2
+            return 2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        # Apply age preference filtering if present
+        if my_profile:
+            min_age = my_profile.preferred_min_age or 18
+            max_age = my_profile.preferred_max_age or 99
+            profiles = [
+                p for p in profiles
+                if (get_age(p) is not None and min_age <= get_age(p) <= max_age)
+            ]
+
+        # Apply distance radius filtering only when both users have coordinates
+        if my_profile and my_profile.latitude is not None and my_profile.longitude is not None:
+            radius = my_profile.max_distance_km or 50
+            within_radius = []
+            for p in profiles:
+                if p.latitude is None or p.longitude is None:
+                    # Keep profiles without coordinates as fallback (cannot compute radius yet)
+                    within_radius.append(p)
+                    continue
+                dist = haversine_km(my_profile.latitude, my_profile.longitude, p.latitude, p.longitude)
+                if dist <= radius:
+                    within_radius.append(p)
+            profiles = within_radius
+
+        def match_score(p):
+            if not my_profile:
+                return 50
+
+            # 1) Interests (0-60 points)
+            my_interests = {pi.interest.name for pi in my_profile.interests}
+            their_interests = {pi.interest.name for pi in p.interests}
+            if my_interests:
+                shared = len(my_interests & their_interests)
+                total = len(my_interests | their_interests) or 1
+                interest_points = round((shared / total) * 60)
+            else:
+                interest_points = 30
+
+            # 2) Distance closeness (0-25 points) if coordinates available
+            distance_points = 10
+            if (
+                my_profile.latitude is not None and my_profile.longitude is not None and
+                p.latitude is not None and p.longitude is not None
+            ):
+                radius = my_profile.max_distance_km or 50
+                dist = haversine_km(my_profile.latitude, my_profile.longitude, p.latitude, p.longitude)
+                closeness = max(0, 1 - (dist / max(radius, 1)))
+                distance_points = round(closeness * 25)
+
+            # 3) Relationship-goal compatibility (0-15 points)
+            goal_points = 0
+            if my_profile.relationship_goal and p.relationship_goal:
+                goal_points = 15 if my_profile.relationship_goal == p.relationship_goal else 6
+
+            return max(1, min(100, interest_points + distance_points + goal_points))
+
+        result = []
+        for p in profiles:
+            d = profile_to_dict(p)
+            d["match_score"] = match_score(p)
+            result.append(d)
+
+        result.sort(key=lambda x: x["match_score"], reverse=True)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"errors": [str(e)]}), 500
+
+
+@app.route("/api/matches/like/<int:user_id>", methods=["POST"])
+@login_required
+def like_user(user_id):
+    """Like a user. If they already liked you, it's a mutual match."""
+    try:
+        if user_id == current_user.id:
+            return jsonify({"error": "Cannot like yourself"}), 400
+
+        # Check if already liked
+        existing = Match.query.filter_by(
+            sender_id=current_user.id, receiver_id=user_id
+        ).first()
+        if existing:
+            return jsonify({"message": "Already liked"}), 200
+
+        # Check if they already liked us
+        reverse = Match.query.filter_by(
+            sender_id=user_id, receiver_id=current_user.id
+        ).first()
+
+        new_match = Match(
+            sender_id=current_user.id,
+            receiver_id=user_id,
+            status="liked"
+        )
+        db.session.add(new_match)
+
+        matched = False
+        if reverse:
+            # Mutual match!
+            reverse.status = "matched"
+            new_match.status = "matched"
+            matched = True
+
+        db.session.commit()
+
+        return jsonify({
+            "message": "Matched!" if matched else "Liked!",
+            "matched": matched,
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"errors": [str(e)]}), 500
+
+
+@app.route("/api/matches/pass/<int:user_id>", methods=["POST"])
+@login_required
+def pass_user(user_id):
+    """Pass/dislike a user so they don't show up again."""
+    try:
+        existing = Match.query.filter_by(
+            sender_id=current_user.id, receiver_id=user_id
+        ).first()
+        if not existing:
+            new_match = Match(
+                sender_id=current_user.id,
+                receiver_id=user_id,
+                status="blocked"  # Using blocked to mean "passed"
+            )
+            db.session.add(new_match)
+            db.session.commit()
+        return jsonify({"message": "Passed"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"errors": [str(e)]}), 500
+
+
+# ── Messages ──────────────────────────────────────────────────────────────────
+
+def get_match_between(user_a_id, user_b_id):
+    """Get the mutual match record between two users."""
+    return Match.query.filter(
+        Match.status == "matched",
+        or_(
+            and_(Match.sender_id == user_a_id, Match.receiver_id == user_b_id),
+            and_(Match.sender_id == user_b_id, Match.receiver_id == user_a_id),
+        )
+    ).first()
+
+
+@app.route("/api/messages", methods=["GET"])
+@login_required
+def get_conversations():
+    """Get conversation list — all mutual matches with latest message."""
+    try:
+        matches = Match.query.filter(
+            or_(Match.sender_id == current_user.id, Match.receiver_id == current_user.id),
+            Match.status == "matched"
+        ).all()
+
+        result = []
+        for m in matches:
+            other_id = m.receiver_id if m.sender_id == current_user.id else m.sender_id
+            other_profile = Profile.query.filter_by(user_id=other_id).first()
+            if not other_profile:
+                continue
+
+            last_msg = Message.query.filter_by(match_id=m.id).order_by(
+                Message.sent_at.desc()
+            ).first()
+
+            result.append({
+                "id": m.id,
+                "user": profile_to_dict(other_profile),
+                "last_message": last_msg.content if last_msg else "",
+                "last_message_at": last_msg.sent_at.isoformat() if last_msg else m.created_at.isoformat(),
+                "unread": 0,
+            })
+
+        result.sort(key=lambda x: x["last_message_at"], reverse=True)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"errors": [str(e)]}), 500
+
+
+@app.route("/api/messages/<int:user_id>", methods=["GET"])
+@login_required
+def get_messages(user_id):
+    """Get message history between current user and another user."""
+    try:
+        match = get_match_between(current_user.id, user_id)
+        if not match:
+            return jsonify({"error": "No match found with this user"}), 403
+
+        messages = Message.query.filter_by(match_id=match.id).order_by(
+            Message.sent_at.asc()
+        ).all()
+
+        result = [{
+            "id": m.id,
+            "sender_id": m.sender_id,
+            "receiver_id": user_id if m.sender_id == current_user.id else current_user.id,
+            "content": m.content,
+            "created_at": m.sent_at.isoformat(),
+            "edited": False,
+        } for m in messages]
+
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"errors": [str(e)]}), 500
+
+
+@app.route("/api/messages/<int:user_id>", methods=["POST"])
+@login_required
+def send_message(user_id):
+    """Send a message to a matched user."""
+    try:
+        match = get_match_between(current_user.id, user_id)
+        if not match:
+            return jsonify({"error": "You can only message your matches"}), 403
+
+        data = request.get_json()
+        content = data.get("content", "").strip() if data else ""
+        if not content:
+            return jsonify({"errors": ["Message cannot be empty"]}), 400
+
+        msg = Message(
+            match_id=match.id,
+            sender_id=current_user.id,
+            content=content,
+        )
+        db.session.add(msg)
+        db.session.commit()
+
+        return jsonify({
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "receiver_id": user_id,
+            "content": msg.content,
+            "created_at": msg.sent_at.isoformat(),
+            "edited": False,
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"errors": [str(e)]}), 500
+
+
+# ── Favourites ────────────────────────────────────────────────────────────────
+
+@app.route("/api/favourites", methods=["GET"])
+@login_required
+def get_favourites():
+    favs = Favourite.query.filter_by(user_id=current_user.id).all()
+    result = [profile_to_dict(f.profile) for f in favs]
+    return jsonify(result), 200
+
+
+@app.route("/api/favourites/<int:profile_id>", methods=["POST"])
+@login_required
+def add_favourite(profile_id):
+    try:
+        existing = Favourite.query.filter_by(
+            user_id=current_user.id, profile_id=profile_id
+        ).first()
+        if existing:
+            return jsonify({"message": "Already saved"}), 200
+        fav = Favourite(user_id=current_user.id, profile_id=profile_id)
+        db.session.add(fav)
+        db.session.commit()
+        return jsonify({"message": "Saved to favourites"}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"errors": [str(e)]}), 500
+
+
+@app.route("/api/favourites/<int:profile_id>", methods=["DELETE"])
+@login_required
+def remove_favourite(profile_id):
+    try:
+        fav = Favourite.query.filter_by(
+            user_id=current_user.id, profile_id=profile_id
+        ).first()
+        if fav:
+            db.session.delete(fav)
+            db.session.commit()
+        return jsonify({"message": "Removed from favourites"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"errors": [str(e)]}), 500
+
+
+# ── Static file serving ───────────────────────────────────────────────────────
+
+@app.after_request
+def add_header(response):
+    response.headers['X-UA-Compatible'] = 'IE=Edge,chrome=1'
+    response.headers['Cache-Control'] = 'public, max-age=0'
+    return response
+
+
+@app.errorhandler(404)
+def page_not_found(error):
+    return jsonify({"error": "Not found"}), 404

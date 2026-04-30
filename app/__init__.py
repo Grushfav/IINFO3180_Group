@@ -4,21 +4,20 @@ from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 from .config import Config
 from flask_migrate import Migrate
-from .model import db
+from .db import db
 from flask_wtf.csrf import CSRFProtect
 
 import os
 
 app = Flask(__name__)
-app.config.from_object(Config)  # Load config first
-app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF globally
-CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+app.config.from_object(Config)
+app.config['WTF_CSRF_ENABLED'] = False
+# Must be explicit allowlist when withCredentials/include cookies is used.
+CORS(app, supports_credentials=True, origins=app.config["CORS_ORIGINS"])
 
-db.init_app(app)  # Initialize db after config
+db.init_app(app)
 migrate = Migrate(app, db)
 
-
-# Flask-Login login manager
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'

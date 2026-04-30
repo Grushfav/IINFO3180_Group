@@ -1,7 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, BooleanField, DateField, SelectField, TextAreaField, FileField, IntegerField
-from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError
-from .model import User
+from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError, Optional, NumberRange
 
 class SignupForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=120)])
@@ -11,10 +10,12 @@ class SignupForm(FlaskForm):
     submit = SubmitField("Sign Up")
 
     def validate_email(self, email):
+        from .model import User
         if User.query.filter_by(email=email.data).first():
             raise ValidationError("Email already registered.")
-
+        
     def validate_username(self, username):
+        from .model import User
         if User.query.filter_by(username=username.data).first():
             raise ValidationError("Username already taken.")
 
@@ -36,6 +37,9 @@ class ProfileForm(FlaskForm):
     occupation = StringField("Occupation", validators=[Length(max=100)])
     education_level = StringField("Education Level", validators=[Length(max=50)])
     relationship_goal = StringField("Relationship Goal", validators=[Length(max=50)])
+    preferred_min_age = IntegerField("Preferred Min Age", validators=[Optional(), NumberRange(min=18, max=99)])
+    preferred_max_age = IntegerField("Preferred Max Age", validators=[Optional(), NumberRange(min=18, max=99)])
+    max_distance_km = IntegerField("Max Distance (km)", validators=[Optional(), NumberRange(min=1, max=500)])
     submit = SubmitField("Save Profile")
 
 
@@ -62,5 +66,3 @@ class PreferenceForm(FlaskForm):
 class ReportForm(FlaskForm):
     reason = TextAreaField("Reason", validators=[DataRequired()])
     submit = SubmitField("Report User")
-
-

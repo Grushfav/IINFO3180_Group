@@ -1,17 +1,39 @@
 <template>
-      <footer class="mt-5">
-          <div class="container">
-              <p>Copyright &copy {{ year }} Flask Inc.</p>
-          </div>
-      </footer>
+  <footer class="app-footer">
+    <div class="footer-inner">
+      <span class="footer-brand">🌊 DriftDater</span>
+      <span class="footer-copy">© 2026 DriftDater · INFO3180 Group Project</span>
+    </div>
+  </footer>
 </template>
 
-<script setup>
-import { ref } from "vue";
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400&display=swap');
 
-const year = (new Date).getFullYear();
-</script>
+.app-footer {
+  background: #1a1025;
+  color: rgba(255,255,255,0.4);
+  padding: 1.2rem 2rem;
+  margin-top: auto;
+}
 
-<style>
-/* Add any component specific styles here */
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+}
+
+.footer-brand {
+  color: rgba(255,255,255,0.7);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 600px) {
+  .footer-inner { flex-direction: column; gap: 0.4rem; text-align: center; }
+}
 </style>

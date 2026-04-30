@@ -16,5 +16,13 @@ class Config(object):
     if database_url:
         database_url = database_url.replace('postgres://', 'postgresql://')
     
-    SQLALCHEMY_DATABASE_URI = database_url or 'postgresql://postgres:password@localhost/lovelink_db'
+    SQLALCHEMY_DATABASE_URI = database_url or 'postgresql://shen@localhost/driftdater_db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    CORS_SUPPORTS_CREDENTIALS = True
+    # Credentials requests must use explicit origins (not '*')
+    _cors_default = "http://localhost:5173,http://localhost:5174"
+    CORS_ORIGINS = [
+        origin.strip()
+        for origin in os.environ.get("CORS_ORIGINS", _cors_default).split(",")
+        if origin.strip()
+    ]

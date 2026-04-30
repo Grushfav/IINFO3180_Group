@@ -1,17 +1,11 @@
-import { createApp } from "vue";
-import App from "./App.vue";
-import router from "./router";
-import axios from "axios";
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import App from './App.vue'
+import router from './router'
 
-const app = createApp(App);
+const app = createApp(App)
 
-// Configure axios
-axios.defaults.baseURL = "http://localhost:5000";
-axios.defaults.withCredentials = true;
+app.use(createPinia())
+app.use(router)
 
-app.config.globalProperties.$axios = axios;
-app.provide("$axios", axios);
-
-app.use(router);
-
-app.mount("#app");
+app.mount('#app')
