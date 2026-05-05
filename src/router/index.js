@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
-import { useAuthStore } from '../stores/auth'
+import { useAuthStore, hasPersistedUserSnapshot } from '../stores/auth'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -70,10 +70,8 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   const auth = useAuthStore()
 
-  // If we have a cached user in sessionStorage but Pinia was cleared (page refresh),
-  // restore it before checking auth
-  if (!auth.user && sessionStorage.getItem('dd_user')) {
-    // Verify session is still valid with the backend
+  // Rehydrate from backend only when we have a real cached user object (not the literal "null" string).
+  if (!auth.user && hasPersistedUserSnapshot()) {
     await auth.fetchCurrentUser()
   }
 

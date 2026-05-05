@@ -2,9 +2,29 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import api, { profilePhotoUrl } from '../services/api'
 
+function readStoredUser() {
+  try {
+    const raw = sessionStorage.getItem('dd_user')
+    if (!raw || raw === 'null') return null
+    const u = JSON.parse(raw)
+    if (!u || typeof u !== 'object' || u.id == null) {
+      sessionStorage.removeItem('dd_user')
+      return null
+    }
+    return u
+  } catch {
+    sessionStorage.removeItem('dd_user')
+    return null
+  }
+}
+
+export function hasPersistedUserSnapshot() {
+  return readStoredUser() != null
+}
+
 export const useAuthStore = defineStore('auth', () => {
   // State — persisted in sessionStorage so page refresh keeps you logged in
-  const user = ref(JSON.parse(sessionStorage.getItem('dd_user') || 'null'))
+  const user = ref(readStoredUser())
   const loading = ref(false)
   const error = ref(null)
 
@@ -42,6 +62,11 @@ export const useAuthStore = defineStore('auth', () => {
       })
       // After login, fetch the profile to get name/photo etc.
       await fetchCurrentUser()
+      if (!user.value) {
+        error.value =
+          'Login succeeded but the session was not saved. Try a normal (non-private) window, or disable strict tracking prevention for this site — the app needs cookies to talk to the API.'
+        throw new Error('Session not established')
+      }
       return loginRes.data
     } catch (err) {
       const msg = err.response?.data?.error ||
@@ -109,7 +134,7 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (err) {
       user.value = null
       sessionStorage.removeItem('dd_user')
-      // 401 just means not logged in — not an error worth throwing
+      // 401 = not logged in; caller may treat as soft failure
     } finally {
       loading.value = false
     }
