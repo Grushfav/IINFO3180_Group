@@ -1,7 +1,18 @@
 import os
+from urllib.parse import urlparse
+
 from dotenv import load_dotenv
 
-load_dotenv()  
+load_dotenv()
+
+
+def _origin_netloc(origin):
+    try:
+        if not origin or not str(origin).startswith("http"):
+            return ""
+        return urlparse(origin).netloc.lower()
+    except Exception:
+        return ""  
 
 class Config(object):
     """Base Config Object"""
@@ -39,9 +50,23 @@ class Config(object):
     if _render_public and _render_public not in CORS_ORIGINS:
         CORS_ORIGINS = CORS_ORIGINS + [_render_public]
 
-    # HTTPS cookies behind Render's proxy: secure session + correct SameSite split vs same-host SPA.
+    # HTTPS cookies behind Render's proxy.
     _on_render = os.environ.get("RENDER", "").lower() == "true" or bool(_render_public)
-    _cross_site = os.environ.get("USE_CROSS_SITE_SESSION", "").lower() in ("1", "true", "yes")
+    _api_host = _origin_netloc(_render_public)
+    # Static site on another host (e.g. frontend-*.onrender.com) + API on drift-dater: session must be
+    # SameSite=None. Auto-detect from CORS vs RENDER_EXTERNAL_URL so deploys don't miss USE_CROSS_SITE_SESSION.
+    _cross_site_auto = False
+    if _on_render and _api_host:
+        for _o in CORS_ORIGINS:
+            h = _origin_netloc(_o)
+            if not h or h.startswith("localhost") or h.startswith("127."):
+                continue
+            if h != _api_host:
+                _cross_site_auto = True
+                break
+    _cross_site_explicit = os.environ.get("USE_CROSS_SITE_SESSION", "").lower() in ("1", "true", "yes")
+    _same_site_only = os.environ.get("SAME_SITE_SESSION_ONLY", "").lower() in ("1", "true", "yes")
+    _session_cross_site = not _same_site_only and (_cross_site_explicit or _cross_site_auto)
     if _on_render:
         SESSION_COOKIE_SECURE = True
-        SESSION_COOKIE_SAMESITE = "None" if _cross_site else "Lax"
+        SESSION_COOKIE_SAMESITE = "None" if _session_cross_site else "Lax"
