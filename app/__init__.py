@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
@@ -12,15 +12,28 @@ import os
 app = Flask(__name__)
 app.config.from_object(Config)
 app.config['WTF_CSRF_ENABLED'] = False
-# Must be explicit allowlist when withCredentials/include cookies is used.
-CORS(app, supports_credentials=True, origins=app.config["CORS_ORIGINS"])
+# Explicit allowlist when withCredentials is used. OPTIONS preflight must succeed.
+CORS(
+    app,
+    supports_credentials=True,
+    origins=app.config["CORS_ORIGINS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+)
 
 db.init_app(app)
 migrate = Migrate(app, db)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+# API-only app: do not redirect to login_view (that would GET /api/login, which is POST-only → 405).
+login_manager.login_view = None
+
+
+@login_manager.unauthorized_handler
+def _unauthorized():
+    return jsonify(error="Authentication required"), 401
+
 
 @login_manager.user_loader
 def load_user(user_id):

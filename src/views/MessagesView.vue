@@ -94,6 +94,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useMessagesStore } from '../stores/messages'
 import { mockConversations, mockMessages } from '../data/mockMessages'
+import './MessagesView.css'
 
 const auth = useAuthStore()
 const messagesStore = useMessagesStore()

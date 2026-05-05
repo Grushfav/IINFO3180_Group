@@ -34,3 +34,7 @@ venv
 # Environment Variables
 .env
 .flaskenv
+
+# Local SQLite / instance data (use Postgres in production)
+instances/
+*.db

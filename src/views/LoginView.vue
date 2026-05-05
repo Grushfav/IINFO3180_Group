@@ -2,7 +2,7 @@
   <div class="auth-page">
     <div class="auth-card">
       <div class="auth-header">
-        <img src="/src/assets/logo.png" alt="DriftDater" class="brand-icon">
+        <img src="/drift-logo.png" alt="DriftDater" class="brand-icon">
         <h1 class="auth-title">Welcome back</h1>
         <p class="auth-subtitle">Sign in to find your drift</p>
       </div>

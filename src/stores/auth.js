@@ -36,7 +36,10 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true
     error.value = null
     try {
-      const loginRes = await api.post('/api/login', credentials)
+      const loginRes = await api.post('/api/login', {
+        ...credentials,
+        remember: credentials.remember ?? false,
+      })
       // After login, fetch the profile to get name/photo etc.
       await fetchCurrentUser()
       return loginRes.data

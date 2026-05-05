@@ -1,7 +1,7 @@
 <template>
   <footer class="app-footer">
     <div class="footer-inner">
-      <img src="/src/assets/logo.png" alt="DriftDater" class="brand-icon">
+      <img src="/drift-logo.png" alt="DriftDater" class="brand-icon">
       <span class="footer-copy">© 2026 DriftDater · INFO3180 Group Project</span>
     </div>
   </footer>

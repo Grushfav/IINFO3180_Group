@@ -1,0 +1,361 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=DM+Sans:wght@300;400;500&display=swap');
+
+/* Scoped to this view via root class — same rules as former <style scoped> */
+
+.messages-page {
+  min-height: 100vh;
+  background: #fff5f0;
+  padding-top: 64px;
+}
+
+.messages-page .messages-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  height: calc(100vh - 64px);
+}
+
+.messages-page .convo-sidebar {
+  background: white;
+  border-right: 1px solid #f0eaf6;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.messages-page .sidebar-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f0eaf6;
+}
+
+.messages-page .sidebar-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  color: #1a1025;
+  margin: 0;
+}
+
+.messages-page .convo-error {
+  margin: 0 1.25rem 0.75rem;
+  padding: 0.65rem 0.85rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  color: #c0384d;
+  background: rgba(232, 93, 117, 0.08);
+  border: 1px solid rgba(232, 93, 117, 0.25);
+  border-radius: 10px;
+}
+
+.messages-page .convo-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.messages-page .convo-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1.25rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f8f2fc;
+  transition: background 0.15s;
+}
+
+.messages-page .convo-item:hover {
+  background: #fdf5f8;
+}
+
+.messages-page .convo-item.active {
+  background: rgba(232, 93, 117, 0.06);
+}
+
+.messages-page .convo-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid transparent;
+}
+
+.messages-page .convo-item.active .convo-avatar {
+  border-color: #e85d75;
+}
+
+.messages-page .convo-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.messages-page .convo-name {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1a1025;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.messages-page .convo-last {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  color: #8b7fa0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.messages-page .convo-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.messages-page .convo-time {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  color: #b0a0c0;
+}
+
+.messages-page .unread-badge {
+  background: #e85d75;
+  color: white;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.messages-page .chat-panel {
+  display: flex;
+  flex-direction: column;
+  background: #fdfbfe;
+}
+
+.messages-page .chat-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  font-family: 'DM Sans', sans-serif;
+  color: #8b7fa0;
+  font-size: 0.95rem;
+}
+
+.messages-page .chat-empty span {
+  font-size: 3rem;
+}
+
+.messages-page .chat-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem 1.5rem;
+  background: white;
+  border-bottom: 1px solid #f0eaf6;
+}
+
+.messages-page .chat-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e85d75;
+}
+
+.messages-page .chat-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  color: #1a1025;
+}
+
+.messages-page .back-btn {
+  font-family: 'DM Sans', sans-serif;
+  background: none;
+  border: none;
+  color: #e85d75;
+  font-size: 0.88rem;
+  cursor: pointer;
+  padding: 0;
+  margin-right: 0.25rem;
+}
+
+.messages-page .chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.messages-page .msg-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  max-width: 100%;
+}
+
+.messages-page .msg-row.mine {
+  align-items: flex-end;
+}
+
+.messages-page .msg-sender-tag {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #b0a0c0;
+  padding: 0 0.15rem;
+}
+
+.messages-page .msg-row.mine .msg-sender-tag {
+  color: #e85d75;
+}
+
+.messages-page .msg-bubble {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  background: white;
+  color: #1a1025;
+  padding: 0.65rem 1rem;
+  border-radius: 16px 16px 16px 4px;
+  max-width: 65%;
+  line-height: 1.5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  align-self: flex-start;
+}
+
+.messages-page .msg-row.mine .msg-bubble {
+  align-self: flex-end;
+  margin-left: auto;
+  background: linear-gradient(135deg, #e85d75, #f4845f);
+  color: white;
+  border-radius: 16px 16px 4px 16px;
+}
+
+.messages-page .msg-row:not(.mine) .msg-bubble {
+  margin-right: auto;
+}
+
+.messages-page .msg-edited {
+  font-size: 0.72rem;
+  opacity: 0.65;
+  margin-left: 0.35rem;
+}
+
+.messages-page .msg-time {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  color: #b0a0c0;
+  align-self: flex-start;
+}
+
+.messages-page .msg-row.mine .msg-time {
+  align-self: flex-end;
+}
+
+.messages-page .chat-input-row {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: white;
+  border-top: 1px solid #f0eaf6;
+}
+
+.messages-page .chat-input {
+  flex: 1;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  padding: 0.7rem 1rem;
+  border: 1.5px solid #e8dff0;
+  border-radius: 12px;
+  outline: none;
+  background: #fdfbfe;
+  color: #1a1025;
+  transition: border-color 0.2s;
+}
+
+.messages-page .chat-input:focus {
+  border-color: #e85d75;
+}
+
+.messages-page .btn-send {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  font-size: 0.9rem;
+  background: linear-gradient(135deg, #e85d75, #f4845f);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 0.7rem 1.4rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.messages-page .btn-send:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.messages-page .btn-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.messages-page .loading-mini {
+  padding: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.messages-page .loading-mini.center {
+  flex: 1;
+  align-items: center;
+}
+
+.messages-page .no-convos {
+  padding: 2rem 1.5rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  color: #8b7fa0;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.messages-page .spinner-sm {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(232, 93, 117, 0.2);
+  border-top-color: #e85d75;
+  border-radius: 50%;
+  animation: messages-view-spin 0.7s linear infinite;
+}
+
+@keyframes messages-view-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 700px) {
+  .messages-page .messages-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .messages-page .convo-sidebar.hidden,
+  .messages-page .chat-panel.hidden {
+    display: none;
+  }
+}

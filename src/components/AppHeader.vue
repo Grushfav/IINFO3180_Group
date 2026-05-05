@@ -3,7 +3,7 @@
     <nav class="navbar fixed-top">
       <div class="nav-container">
         <RouterLink to="/" class="navbar-brand">
-          <img src="/src/assets/logo.png" alt="DriftDater" class="brand-icon">
+          <img src="/drift-logo.png" alt="DriftDater" class="brand-icon">
           
         </RouterLink>
 

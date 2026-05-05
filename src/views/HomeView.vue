@@ -82,7 +82,7 @@
         </div>
 
         <div v-else-if="filteredMatches.length === 0" class="empty-state">
-          <img src="/src/assets/logo.png" alt="DriftDater" class="brand-icon">
+          <img src="/drift-logo.png" alt="DriftDater" class="brand-icon">
           <p>No potential matches found. Try adjusting your filters.</p>
         </div>
 

@@ -19,10 +19,25 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = database_url or 'postgresql://shen@localhost/driftdater_db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CORS_SUPPORTS_CREDENTIALS = True
-    # Credentials requests must use explicit origins (not '*')
+    # Credentials requests must use explicit origins (not '*'). Comma-separated, no path.
+    # On Render: include your static site, e.g. https://your-frontend.onrender.com
     _cors_default = "http://localhost:5173,http://localhost:5174"
+    _cors_raw = os.environ.get("CORS_ORIGINS", _cors_default)
     CORS_ORIGINS = [
         origin.strip()
-        for origin in os.environ.get("CORS_ORIGINS", _cors_default).split(",")
+        for origin in _cors_raw.split(",")
         if origin.strip()
     ]
+    # Empty env (e.g. CORS_ORIGINS=) breaks flask-cors; fall back to local dev origins
+    if not CORS_ORIGINS:
+        CORS_ORIGINS = [
+            o.strip() for o in _cors_default.split(",") if o.strip()
+        ]
+
+    # Separate static frontend (e.g. two Render services): session cookie must be cross-site.
+    _cross_site = os.environ.get("RENDER", "").lower() == "true" or os.environ.get(
+        "USE_CROSS_SITE_SESSION", ""
+    ).lower() in ("1", "true", "yes")
+    if _cross_site:
+        SESSION_COOKIE_SECURE = True
+        SESSION_COOKIE_SAMESITE = "None"
