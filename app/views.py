@@ -3,7 +3,7 @@ Flask API views for DriftDater
 """
 
 from . import app
-from flask import request, jsonify, send_from_directory
+from flask import request, jsonify, send_from_directory, abort
 from flask_login import login_user, logout_user, login_required, current_user
 from .db import db
 from .model import User, Profile, Interest, ProfileInterest, Match, Message, Favourite
@@ -75,9 +75,29 @@ def profile_to_dict(profile, include_user=False):
     return data
 
 
-# ── Health check ──────────────────────────────────────────────────────────────
+# ── Health / SPA (Vue dist/) ─────────────────────────────────────────────────
+def _project_root():
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+
+def _dist_dir():
+    return os.path.join(_project_root(), 'dist')
+
+
+def _spa_available():
+    return os.path.isfile(os.path.join(_dist_dir(), 'index.html'))
+
+
+@app.route('/api/health')
+def api_health():
+    """JSON health check (use this path on Render when / serves the SPA)."""
+    return jsonify(message="DriftDater API is running"), 200
+
+
 @app.route('/')
 def index():
+    if _spa_available():
+        return send_from_directory(_dist_dir(), 'index.html')
     return jsonify(message="DriftDater API is running")
 
 
@@ -95,7 +115,7 @@ def signup():
             user = User(email=form.email.data, username=form.username.data)
             user.set_password(form.password.data)
             db.session.add(user)
-            db.session.flush()  # Get the user.id before committing
+            db.session.flush()  
 
             dob = date(2000, 1, 1)
             dob_str = data.get("date_of_birth")
@@ -139,7 +159,7 @@ def login():
             user = User.query.filter_by(email=form.email.data).first()
             if user and user.check_password(form.password.data):
                 login_user(user, remember=form.remember.data)
-                # Update last_active
+                
                 user.last_active = datetime.utcnow()
                 db.session.commit()
                 return jsonify({
@@ -758,6 +778,33 @@ def remove_favourite(profile_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"errors": [str(e)]}), 500
+
+
+# ── Vite build assets + client-side routes (same-origin deploy) ──────────────
+
+@app.route('/assets/<path:filename>')
+def vite_built_assets(filename):
+    if not _spa_available():
+        abort(404)
+    folder = os.path.join(_dist_dir(), 'assets')
+    path = os.path.join(folder, filename)
+    if not os.path.isfile(path):
+        abort(404)
+    return send_from_directory(folder, filename)
+
+
+@app.route('/<path:path>')
+def spa_public_files_and_fallback(path):
+    """Serve files from dist/ (e.g. drift-logo.png) or index.html for Vue Router."""
+    if path.startswith('api/'):
+        return jsonify({"error": "Not found"}), 404
+    if not _spa_available():
+        return jsonify({"error": "Not found"}), 404
+    dist = _dist_dir()
+    direct = os.path.join(dist, path)
+    if os.path.isfile(direct):
+        return send_from_directory(dist, path)
+    return send_from_directory(dist, 'index.html')
 
 
 # ── Static file serving ───────────────────────────────────────────────────────

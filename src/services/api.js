@@ -1,8 +1,14 @@
 import axios from 'axios'
 
-// In development: Flask runs on localhost:8080 by default in this repo's .env
-// In production (Render): set VITE_API_BASE_URL env variable to your Render backend URL
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+// Dev: point at Flask (e.g. http://localhost:8080). Prod: leave VITE_API_BASE_URL unset when the
+// API is served from the same origin as the SPA (Flask hosts dist/) — fixes mobile Safari cookies.
+const envBase = import.meta.env.VITE_API_BASE_URL
+const baseURL =
+  typeof envBase === 'string' && envBase.length > 0
+    ? envBase
+    : import.meta.env.PROD
+      ? ''
+      : 'http://localhost:8080'
 
 const api = axios.create({
   baseURL,

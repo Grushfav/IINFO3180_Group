@@ -34,10 +34,14 @@ class Config(object):
             o.strip() for o in _cors_default.split(",") if o.strip()
         ]
 
-    # Separate static frontend (e.g. two Render services): session cookie must be cross-site.
-    _cross_site = os.environ.get("RENDER", "").lower() == "true" or os.environ.get(
-        "USE_CROSS_SITE_SESSION", ""
-    ).lower() in ("1", "true", "yes")
-    if _cross_site:
+    # Same-origin SPA on Render: browser Origin is the API URL; include it so credentialed XHR is allowed.
+    _render_public = (os.environ.get("RENDER_EXTERNAL_URL") or "").strip().rstrip("/")
+    if _render_public and _render_public not in CORS_ORIGINS:
+        CORS_ORIGINS = CORS_ORIGINS + [_render_public]
+
+    # HTTPS cookies behind Render's proxy: secure session + correct SameSite split vs same-host SPA.
+    _on_render = os.environ.get("RENDER", "").lower() == "true" or bool(_render_public)
+    _cross_site = os.environ.get("USE_CROSS_SITE_SESSION", "").lower() in ("1", "true", "yes")
+    if _on_render:
         SESSION_COOKIE_SECURE = True
-        SESSION_COOKIE_SAMESITE = "None"
+        SESSION_COOKIE_SAMESITE = "None" if _cross_site else "Lax"
