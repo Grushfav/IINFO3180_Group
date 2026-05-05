@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api, { buildMediaUrl } from '../services/api'
+import api, { profilePhotoUrl } from '../services/api'
 import { useAuthStore } from './auth'
 
 export const useProfileStore = defineStore('profile', () => {
@@ -122,7 +122,7 @@ export const useProfileStore = defineStore('profile', () => {
       lookingFor: data.looking_for || 'any',
       bio: data.bio || '',
       location: data.location || '',
-      photo: data.profile_photo ? buildMediaUrl(`/static/uploads/${data.profile_photo}`) : null,
+      photo: profilePhotoUrl(data.profile_photo),
       occupation: data.occupation || '',
       educationLevel: data.education_level || '',
       heightCm: data.height_cm || null,

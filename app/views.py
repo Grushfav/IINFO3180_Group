@@ -383,9 +383,18 @@ def get_matches():
             Match.status == "matched"
         ).all()
 
-        result = []
+        # Two rows can exist for the same pair (A→B and B→A), both "matched".
+        # Deduplicate by other user id — keep the newest match row.
+        by_other = {}
         for m in matches:
             other_user_id = m.receiver_id if m.sender_id == current_user.id else m.sender_id
+            prev = by_other.get(other_user_id)
+            if not prev or m.id > prev["match"].id:
+                by_other[other_user_id] = {"match": m}
+
+        result = []
+        for other_user_id, wrap in by_other.items():
+            m = wrap["match"]
             other_profile = Profile.query.filter_by(user_id=other_user_id).first()
             if other_profile:
                 result.append({
@@ -585,14 +594,20 @@ def pass_user(user_id):
 # ── Messages ──────────────────────────────────────────────────────────────────
 
 def get_match_between(user_a_id, user_b_id):
-    """Get the mutual match record between two users."""
-    return Match.query.filter(
+    """Get the mutual match record between two users (pair may have two rows A→B and B→A)."""
+    candidates = Match.query.filter(
         Match.status == "matched",
         or_(
             and_(Match.sender_id == user_a_id, Match.receiver_id == user_b_id),
             and_(Match.sender_id == user_b_id, Match.receiver_id == user_a_id),
         )
-    ).first()
+    ).order_by(Match.id.desc()).all()
+    if not candidates:
+        return None
+    for m in candidates:
+        if Message.query.filter_by(match_id=m.id).first():
+            return m
+    return candidates[0]
 
 
 @app.route("/api/messages", methods=["GET"])
@@ -605,14 +620,23 @@ def get_conversations():
             Match.status == "matched"
         ).all()
 
-        result = []
+        by_other = {}
         for m in matches:
             other_id = m.receiver_id if m.sender_id == current_user.id else m.sender_id
+            if other_id not in by_other:
+                by_other[other_id] = {"match_ids": [], "newest": m}
+            by_other[other_id]["match_ids"].append(m.id)
+            if m.id > by_other[other_id]["newest"].id:
+                by_other[other_id]["newest"] = m
+
+        result = []
+        for other_id, meta in by_other.items():
             other_profile = Profile.query.filter_by(user_id=other_id).first()
             if not other_profile:
                 continue
-
-            last_msg = Message.query.filter_by(match_id=m.id).order_by(
+            m = meta["newest"]
+            mids = meta["match_ids"]
+            last_msg = Message.query.filter(Message.match_id.in_(mids)).order_by(
                 Message.sent_at.desc()
             ).first()
 

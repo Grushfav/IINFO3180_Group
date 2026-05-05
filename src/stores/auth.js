@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api, { buildMediaUrl } from '../services/api'
+import api, { profilePhotoUrl } from '../services/api'
 
 export const useAuthStore = defineStore('auth', () => {
   // State — persisted in sessionStorage so page refresh keeps you logged in
@@ -89,7 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
         gender: profileData.gender || '',
         lookingFor: profileData.looking_for || 'any',
         dateOfBirth: profileData.date_of_birth || '',
-        photo: profileData.profile_photo ? buildMediaUrl(`/static/uploads/${profileData.profile_photo}`) : null,
+        photo: profilePhotoUrl(profileData.profile_photo),
         interests: profileData.interests || [],
         occupation: profileData.occupation || '',
         educationLevel: profileData.education_level || '',

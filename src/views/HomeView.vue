@@ -6,8 +6,7 @@
         <p class="hero-eyebrow">✦ Find your connection</p>
         <h1 class="hero-title">Where hearts<br /><em>drift together</em></h1>
         <p class="hero-desc">
-          DriftDater matches you with people who share your vibe — by location,
-          interests, and what really matters to you.
+          Match with people who share your vibe. Match by location, by interests and by what really matters to you.
         </p>
         <div class="hero-actions">
           <RouterLink to="/register" class="btn-primary">Get Started</RouterLink>
@@ -69,12 +68,10 @@
               <option value="31-40">31–40</option>
               <option value="41+">41+</option>
             </select>
-            <input
-              v-model="locationFilter"
-              type="text"
-              class="filter-input"
-              placeholder="Filter by location..."
-            />
+            <select v-model="locationFilter" class="filter-select filter-input">
+              <option value="">All parishes</option>
+              <option v-for="p in parishes" :key="p" :value="p">{{ p }}</option>
+            </select>
           </div>
         </div>
 
@@ -85,7 +82,7 @@
         </div>
 
         <div v-else-if="filteredMatches.length === 0" class="empty-state">
-          <span>🌊</span>
+          <img src="/src/assets/logo.png" alt="DriftDater" class="brand-icon">
           <p>No potential matches found. Try adjusting your filters.</p>
         </div>
 
@@ -128,6 +125,9 @@ import { RouterLink } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useMatchesStore } from '../stores/matches'
 import { mockUsers } from '../data/mockUsers'
+import { JAMAICAN_PARISHES } from '../data/jamaicanParishes'
+
+const parishes = JAMAICAN_PARISHES
 
 const auth = useAuthStore()
 const matchesStore = useMatchesStore()
@@ -218,6 +218,11 @@ onMounted(loadMatches)
   align-items: center;
 }
 
+.brand-icon {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+}
 .hero-eyebrow {
   font-family: 'DM Sans', sans-serif;
   font-size: 0.85rem;

@@ -2,7 +2,7 @@
   <div class="auth-page">
     <div class="auth-card">
       <div class="auth-header">
-        <div class="auth-logo">🌊</div>
+        <img src="/src/assets/logo.png" alt="DriftDater" class="brand-icon">
         <h1 class="auth-title">Create account</h1>
         <p class="auth-subtitle">Start your journey on DriftDater</p>
       </div>
@@ -183,6 +183,11 @@ async function handleRegister() {
   padding: 5rem 1rem 2rem;
   position: relative;
   overflow: hidden;
+}
+.brand-icon {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
 }
 
 .auth-card {

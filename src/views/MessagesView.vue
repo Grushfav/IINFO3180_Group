@@ -7,6 +7,8 @@
           <h2 class="sidebar-title">Messages</h2>
         </div>
 
+        <div v-if="pageError" class="convo-error">{{ pageError }}</div>
+
         <div v-if="loadingConvos" class="loading-mini">
           <div class="spinner-sm"></div>
         </div>
@@ -59,8 +61,9 @@
               v-for="msg in currentMessages"
               :key="msg.id"
               class="msg-row"
-              :class="{ mine: msg.senderId === currentUserId }"
+              :class="{ mine: isMine(msg) }"
             >
+              <span class="msg-sender-tag">{{ isMine(msg) ? 'You' : (activeConvo.user.firstName || 'Them') }}</span>
               <div class="msg-bubble">
                 {{ msg.content }}
                 <span v-if="msg.edited" class="msg-edited">(edited)</span>
@@ -104,9 +107,32 @@ const loadingMessages = ref(false)
 const isMobile = computed(() => window.innerWidth < 700)
 let pollTimer = null
 
-const currentUserId = computed(() => auth.user?.id)
+const currentUserId = computed(() => {
+  const u = auth.user
+  if (!u) return null
+  const raw = u.id ?? u.userId
+  if (raw == null || raw === '') return null
+  const n = Number(raw)
+  return Number.isNaN(n) ? null : n
+})
 const conversations = computed(() => messagesStore.conversations)
 const currentMessages = computed(() => messagesStore.currentMessages)
+const pageError = ref('')
+
+function senderIdOf(msg) {
+  if (!msg) return null
+  const raw = msg.senderId ?? msg.sender_id
+  if (raw == null || raw === '') return null
+  const n = Number(raw)
+  return Number.isNaN(n) ? null : n
+}
+
+function isMine(msg) {
+  const sid = senderIdOf(msg)
+  const uid = currentUserId.value
+  if (sid == null || Number.isNaN(sid) || uid == null || Number.isNaN(uid)) return false
+  return sid === uid
+}
 
 function formatTime(dateStr) {
   if (!dateStr) return ''
@@ -115,10 +141,14 @@ function formatTime(dateStr) {
 }
 
 async function openConversation(convo) {
+  pageError.value = ''
   activeConvo.value = convo
   loadingMessages.value = true
   try {
     await messagesStore.fetchMessages(convo.user.id)
+    if (messagesStore.error) {
+      pageError.value = messagesStore.error
+    }
   } catch {
     messagesStore.currentMessages = mockMessages.filter(
       m => m.senderId === convo.user.id || m.receiverId === convo.user.id
@@ -149,9 +179,11 @@ async function sendMessage() {
   if (!newMessage.value.trim() || !activeConvo.value) return
   const content = newMessage.value.trim()
   newMessage.value = ''
+  pageError.value = ''
   try {
     await messagesStore.sendMessage(activeConvo.value.user.id, content)
-  } catch {
+  } catch (e) {
+    pageError.value = messagesStore.error || e?.response?.data?.error || 'Could not send message'
     messagesStore.currentMessages.push({
       id: Date.now(),
       senderId: currentUserId.value,
@@ -176,6 +208,44 @@ watch(currentMessages, async () => {
   scrollToBottom()
 })
 
+async function openFromQueryUserId() {
+  const userId = route.query.user
+  if (!userId) return
+  const convo = conversations.value.find(c => String(c.user.id) === String(userId))
+  if (convo) {
+    await openConversation(convo)
+    return
+  }
+  // Mutual match exists but sidebar empty / query-only navigation: still try to load thread
+  pageError.value = ''
+  activeConvo.value = {
+    id: `q-${userId}`,
+    user: { id: Number(userId), firstName: '', lastName: '', photo: null },
+    lastMessage: '',
+    lastMessageAt: null,
+    unread: 0,
+  }
+  loadingMessages.value = true
+  try {
+    await messagesStore.fetchMessages(Number(userId))
+    if (messagesStore.error) {
+      pageError.value = messagesStore.error
+      activeConvo.value = null
+    } else {
+      try {
+        await messagesStore.fetchConversations()
+        const c = messagesStore.conversations.find(x => String(x.user.id) === String(userId))
+        if (c) activeConvo.value = c
+      } catch { /* keep synthetic convo */ }
+    }
+  } catch (e) {
+    pageError.value = e?.response?.data?.error || 'You can only message mutual matches.'
+    activeConvo.value = null
+  } finally {
+    loadingMessages.value = false
+  }
+}
+
 onMounted(async () => {
   loadingConvos.value = true
   try {
@@ -186,15 +256,18 @@ onMounted(async () => {
     loadingConvos.value = false
   }
 
-  // If routed with ?user=id, auto-open
-  const userId = route.query.user
-  if (userId) {
-    const convo = conversations.value.find(c => String(c.user.id) === String(userId))
-    if (convo) openConversation(convo)
-  }
+  await openFromQueryUserId()
 
   startPolling()
 })
+
+watch(
+  () => route.query.user,
+  async (userId, prev) => {
+    if (String(userId || '') === String(prev || '')) return
+    await openFromQueryUserId()
+  }
+)
 
 onUnmounted(() => {
   stopPolling()
@@ -235,6 +308,17 @@ onUnmounted(() => {
   font-size: 1.3rem;
   color: #1a1025;
   margin: 0;
+}
+
+.convo-error {
+  margin: 0 1.25rem 0.75rem;
+  padding: 0.65rem 0.85rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.82rem;
+  color: #c0384d;
+  background: rgba(232, 93, 117, 0.08);
+  border: 1px solid rgba(232, 93, 117, 0.25);
+  border-radius: 10px;
 }
 
 .convo-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
@@ -378,10 +462,25 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.2rem;
+  gap: 0.15rem;
+  max-width: 100%;
 }
 
-.msg-row.mine { align-items: flex-end; }
+.msg-row.mine {
+  align-items: flex-end;
+}
+
+.msg-sender-tag {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #b0a0c0;
+  padding: 0 0.15rem;
+}
+
+.msg-row.mine .msg-sender-tag {
+  color: #e85d75;
+}
 
 .msg-bubble {
   font-family: 'DM Sans', sans-serif;
@@ -393,12 +492,19 @@ onUnmounted(() => {
   max-width: 65%;
   line-height: 1.5;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  align-self: flex-start;
 }
 
 .msg-row.mine .msg-bubble {
+  align-self: flex-end;
+  margin-left: auto;
   background: linear-gradient(135deg, #e85d75, #f4845f);
   color: white;
   border-radius: 16px 16px 4px 16px;
+}
+
+.msg-row:not(.mine) .msg-bubble {
+  margin-right: auto;
 }
 
 .msg-edited {
@@ -411,6 +517,11 @@ onUnmounted(() => {
   font-family: 'DM Sans', sans-serif;
   font-size: 0.72rem;
   color: #b0a0c0;
+  align-self: flex-start;
+}
+
+.msg-row.mine .msg-time {
+  align-self: flex-end;
 }
 
 /* Input */

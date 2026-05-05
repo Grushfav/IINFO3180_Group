@@ -21,16 +21,20 @@
       <div v-else class="matches-list">
         <div
           v-for="match in displayMatches"
-          :key="match.id"
+          :key="`${match.user.id}-${match.id}`"
           class="match-row"
         >
           <img
+            v-if="match.user.photo"
             :src="match.user.photo"
             :alt="match.user.firstName"
             class="match-avatar"
           />
+          <div v-else class="match-avatar match-avatar-placeholder" aria-hidden="true">
+            {{ initialsFor(match.user) }}
+          </div>
           <div class="match-info">
-            <div class="match-name">{{ match.user.firstName }} {{ match.user.lastName }}, {{ match.user.age }}</div>
+            <div class="match-name">{{ match.user.firstName }} {{ match.user.lastName }}, {{ formatAge(match.user.age) }}</div>
             <p class="match-bio">{{ match.user.bio }}</p>
             <div v-if="match.user.interests?.length" class="match-interests">
               <span v-for="tag in match.user.interests.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
@@ -69,6 +73,16 @@ function formatDate(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function formatAge(age) {
+  if (age == null || age === '' || Number(age) < 1) return '—'
+  return age
+}
+
+function initialsFor(user) {
+  if (!user) return '?'
+  return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || '?'
 }
 
 onMounted(async () => {
@@ -146,6 +160,18 @@ onMounted(async () => {
   object-fit: cover;
   border: 3px solid #e85d75;
   flex-shrink: 0;
+}
+
+.match-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #e85d75, #f4845f);
+  object-fit: unset;
 }
 
 .match-info { flex: 1; min-width: 160px; }

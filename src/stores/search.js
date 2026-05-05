@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api, { buildMediaUrl } from '../services/api'
+import api, { profilePhotoUrl } from '../services/api'
 
 export const useSearchStore = defineStore('search', () => {
   const results = ref([])
@@ -54,7 +54,7 @@ export const useSearchStore = defineStore('search', () => {
       bio: user.bio || '',
       location: user.location || '',
       interests: user.interests || [],
-      photo: user.profile_photo ? buildMediaUrl(`/static/uploads/${user.profile_photo}`) : null,
+      photo: profilePhotoUrl(user.profile_photo),
       matchScore: user.match_score ?? null,
     }
   }

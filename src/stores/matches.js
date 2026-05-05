@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api, { buildMediaUrl } from '../services/api'
+import api, { profilePhotoUrl } from '../services/api'
 
 export const useMatchesStore = defineStore('matches', () => {
   const matches = ref([])
@@ -90,7 +90,7 @@ export const useMatchesStore = defineStore('matches', () => {
       bio: user.bio || '',
       location: user.location || '',
       interests: user.interests || [],
-      photo: user.profile_photo ? buildMediaUrl(`/static/uploads/${user.profile_photo}`) : null,
+      photo: profilePhotoUrl(user.profile_photo),
     }
   }
 
@@ -113,7 +113,7 @@ export const useMatchesStore = defineStore('matches', () => {
       bio: profile.bio || '',
       location: profile.location || '',
       interests: profile.interests || [],
-      photo: profile.profile_photo ? buildMediaUrl(`/static/uploads/${profile.profile_photo}`) : null,
+      photo: profilePhotoUrl(profile.profile_photo),
       matchScore: profile.match_score ?? null,
     }
   }

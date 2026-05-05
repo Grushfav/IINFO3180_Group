@@ -2,7 +2,7 @@
   <div class="auth-page">
     <div class="auth-card">
       <div class="auth-header">
-        <div class="auth-logo">🌊</div>
+        <img src="/src/assets/logo.png" alt="DriftDater" class="brand-icon">
         <h1 class="auth-title">Welcome back</h1>
         <p class="auth-subtitle">Sign in to find your drift</p>
       </div>
@@ -109,6 +109,12 @@ async function handleLogin() {
   padding: 2rem 1rem;
   position: relative;
   overflow: hidden;
+}
+
+.brand-icon {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
 }
 
 .auth-card {

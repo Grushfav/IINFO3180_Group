@@ -14,8 +14,11 @@
             <input v-model="filters.name" type="text" class="filter-input" placeholder="Search by name or bio..." />
           </div>
           <div class="filter-group">
-            <label class="filter-label">Location</label>
-            <input v-model="filters.location" type="text" class="filter-input" placeholder="City or country..." />
+            <label class="filter-label">Parish</label>
+            <select v-model="filters.location" class="filter-input filter-select">
+              <option value="">Any parish</option>
+              <option v-for="p in parishes" :key="p" :value="p">{{ p }}</option>
+            </select>
           </div>
         </div>
 
@@ -113,6 +116,9 @@
 import { ref, reactive, computed } from 'vue'
 import { useSearchStore } from '../stores/search'
 import { mockUsers } from '../data/mockUsers'
+import { JAMAICAN_PARISHES } from '../data/jamaicanParishes'
+
+const parishes = JAMAICAN_PARISHES
 
 const searchStore = useSearchStore()
 const hasSearched = ref(false)

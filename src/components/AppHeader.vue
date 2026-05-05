@@ -3,8 +3,8 @@
     <nav class="navbar fixed-top">
       <div class="nav-container">
         <RouterLink to="/" class="navbar-brand">
-          <span class="brand-icon">🌊</span>
-          <span class="brand-name">DriftDater</span>
+          <img src="/src/assets/logo.png" alt="DriftDater" class="brand-icon">
+          
         </RouterLink>
 
         <button class="nav-toggle" @click="menuOpen = !menuOpen" :class="{ open: menuOpen }">
@@ -72,6 +72,12 @@ async function handleLogout() {
   --drift-warm: #fff5f0;
   --drift-dark: #1a1025;
   --drift-muted: #8b7fa0;
+}
+
+.brand-icon {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
 }
 
 .navbar {

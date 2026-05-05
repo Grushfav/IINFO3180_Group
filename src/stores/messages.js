@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api, { buildMediaUrl } from '../services/api'
+import api, { profilePhotoUrl } from '../services/api'
 
 export const useMessagesStore = defineStore('messages', () => {
   const conversations = ref([])
@@ -15,10 +15,17 @@ export const useMessagesStore = defineStore('messages', () => {
     error.value = null
     try {
       const response = await api.get('/api/messages')
-      conversations.value = response.data.map(normalizeConversation)
+      const raw = response.data
+      if (!Array.isArray(raw)) {
+        error.value = 'Unexpected response from server'
+        conversations.value = []
+        return conversations.value
+      }
+      conversations.value = raw.map(normalizeConversation)
       return conversations.value
     } catch (err) {
-      error.value = err.response?.data?.errors?.[0] || 'Failed to fetch conversations'
+      const d = err.response?.data
+      error.value = d?.errors?.[0] || d?.error || 'Failed to fetch conversations'
       throw err
     } finally {
       loading.value = false
@@ -31,11 +38,18 @@ export const useMessagesStore = defineStore('messages', () => {
     error.value = null
     try {
       const response = await api.get(`/api/messages/${userId}`)
-      currentMessages.value = response.data.map(normalizeMessage)
+      const raw = response.data
+      if (!Array.isArray(raw)) {
+        error.value = raw?.error || 'Could not load messages'
+        currentMessages.value = []
+        return currentMessages.value
+      }
+      currentMessages.value = raw.map(normalizeMessage)
       currentConversation.value = userId
       return currentMessages.value
     } catch (err) {
-      error.value = err.response?.data?.errors?.[0] || 'Failed to fetch messages'
+      const d = err.response?.data
+      error.value = d?.errors?.[0] || d?.error || 'Failed to fetch messages'
       throw err
     } finally {
       loading.value = false
@@ -52,7 +66,8 @@ export const useMessagesStore = defineStore('messages', () => {
       currentMessages.value.push(normalized)
       return normalized
     } catch (err) {
-      error.value = err.response?.data?.errors?.[0] || 'Failed to send message'
+      const d = err.response?.data
+      error.value = d?.errors?.[0] || d?.error || 'Failed to send message'
       throw err
     } finally {
       loading.value = false
@@ -63,7 +78,9 @@ export const useMessagesStore = defineStore('messages', () => {
   async function pollMessages(userId) {
     try {
       const response = await api.get(`/api/messages/${userId}`)
-      currentMessages.value = response.data.map(normalizeMessage)
+      const raw = response.data
+      if (!Array.isArray(raw)) return
+      currentMessages.value = raw.map(normalizeMessage)
       return currentMessages.value
     } catch (err) {
       // Silent fail for polling
@@ -85,7 +102,7 @@ export const useMessagesStore = defineStore('messages', () => {
         id: user.user_id || user.id,
         firstName: user.first_name || '',
         lastName: user.last_name || '',
-        photo: user.profile_photo ? buildMediaUrl(`/static/uploads/${user.profile_photo}`) : null,
+        photo: profilePhotoUrl(user.profile_photo),
       },
       lastMessage: convo.last_message || '',
       lastMessageAt: convo.last_message_at || null,
@@ -93,13 +110,21 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
+  function toUserId(v) {
+    if (v == null || v === '') return null
+    const n = Number(v)
+    return Number.isNaN(n) ? null : n
+  }
+
   function normalizeMessage(msg = {}) {
+    const senderRaw = msg.sender_id ?? msg.senderId
+    const receiverRaw = msg.receiver_id ?? msg.receiverId
     return {
       id: msg.id,
-      senderId: msg.sender_id,
-      receiverId: msg.receiver_id,
+      senderId: toUserId(senderRaw),
+      receiverId: toUserId(receiverRaw),
       content: msg.content || '',
-      createdAt: msg.created_at,
+      createdAt: msg.created_at ?? msg.createdAt,
       edited: Boolean(msg.edited),
     }
   }

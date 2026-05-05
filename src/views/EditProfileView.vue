@@ -47,8 +47,12 @@
 
           <div class="form-row">
             <div class="field-group">
-              <label class="field-label">Location</label>
-              <input v-model="form.location" type="text" class="field-input" placeholder="City, Country" />
+              <label class="field-label">Parish</label>
+              <select v-model="form.location" class="field-input field-select">
+                <option value="">Select parish</option>
+                <option v-for="p in parishSelectOptions" :key="p" :value="p">{{ p }}</option>
+              </select>
+              <p class="hint-text">Jamaica — 14 parishes</p>
             </div>
             <div class="field-group">
               <label class="field-label">Date of Birth</label>
@@ -169,6 +173,7 @@ import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useProfileStore } from '../stores/profile'
+import { JAMAICAN_PARISHES } from '../data/jamaicanParishes'
 
 const auth = useAuthStore()
 const profileStore = useProfileStore()
@@ -193,6 +198,15 @@ const successMsg = ref('')
 
 const initials = computed(() => {
   return `${form.value.firstName?.[0] || ''}${form.value.lastName?.[0] || ''}`.toUpperCase() || '?'
+})
+
+/** Include current DB value if it is not yet a standard parish label */
+const parishSelectOptions = computed(() => {
+  const loc = (form.value.location || '').trim()
+  if (loc && !JAMAICAN_PARISHES.includes(loc)) {
+    return [loc, ...JAMAICAN_PARISHES]
+  }
+  return [...JAMAICAN_PARISHES]
 })
 
 function handlePhotoChange(e) {
