@@ -53,8 +53,14 @@ class Config(object):
     # HTTPS cookies behind Render's proxy.
     _on_render = os.environ.get("RENDER", "").lower() == "true" or bool(_render_public)
     _api_host = _origin_netloc(_render_public)
+    _nonlocal_cors_hosts = {
+        _origin_netloc(o)
+        for o in CORS_ORIGINS
+        if _origin_netloc(o) and not _origin_netloc(o).startswith(("localhost", "127."))
+    }
     # Static site on another host (e.g. frontend-*.onrender.com) + API on drift-dater: session must be
-    # SameSite=None. Auto-detect from CORS vs RENDER_EXTERNAL_URL so deploys don't miss USE_CROSS_SITE_SESSION.
+    # SameSite=None. Compare CORS to RENDER_EXTERNAL_URL when set; otherwise if RENDER_EXTERNAL_URL is
+    # missing (some dashboards), any non-local CORS entry implies a browser SPA on another host → None.
     _cross_site_auto = False
     if _on_render and _api_host:
         for _o in CORS_ORIGINS:
@@ -64,6 +70,8 @@ class Config(object):
             if h != _api_host:
                 _cross_site_auto = True
                 break
+    elif _on_render and not _api_host and _nonlocal_cors_hosts:
+        _cross_site_auto = True
     _cross_site_explicit = os.environ.get("USE_CROSS_SITE_SESSION", "").lower() in ("1", "true", "yes")
     _same_site_only = os.environ.get("SAME_SITE_SESSION_ONLY", "").lower() in ("1", "true", "yes")
     _session_cross_site = not _same_site_only and (_cross_site_explicit or _cross_site_auto)

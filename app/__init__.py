@@ -47,3 +47,33 @@ def load_user(user_id):
         return None
 
 from . import views
+
+
+@app.after_request
+def _partition_cross_site_session_cookies(response):
+    """iOS / Chrome: cross-site credentialed cookies often need SameSite=None + Partitioned (CHIPS)."""
+    if str(app.config.get("SESSION_COOKIE_SAMESITE", "")).lower() != "none":
+        return response
+    try:
+        lines = response.headers.getlist("Set-Cookie")
+    except AttributeError:
+        v = response.headers.get("Set-Cookie")
+        lines = [v] if v else []
+    if not lines:
+        return response
+    new_lines = []
+    changed = False
+    for line in lines:
+        if not line:
+            continue
+        low = line.lower()
+        if "partitioned" in low:
+            new_lines.append(line)
+        elif "samesite=none" in low:
+            new_lines.append(line + "; Partitioned")
+            changed = True
+        else:
+            new_lines.append(line)
+    if changed and new_lines:
+        response.headers.setlist("Set-Cookie", new_lines)
+    return response

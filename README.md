@@ -1,4 +1,10 @@
-# LoveLink - Dating App
+# DriftDater - Dating App
+## INFO 3180 Group project
+
+### Gavin Seaton 620043505
+### Rayna Jarrett 620162148
+### Shenelle Turner 620161664
+### Kaija Hall 
 
 A modern dating application built with Vue.js 3 frontend and Flask REST API backend. Features user authentication, profiles, matching, messaging, and social features.
 
@@ -102,130 +108,47 @@ A modern dating application built with Vue.js 3 frontend and Flask REST API back
    ```
    Frontend will be available at `http://localhost:5173`
 
-## 📚 API Documentation
-
-### Authentication Endpoints
-
-#### POST `/api/signup`
 
 Register a new user account.
 
-**Request Body:**
+## Screenshots
 
-```json
-{
-  "email": "user@example.com",
-  "username": "johndoe",
-  "password": "securepassword",
-  "confirm_password": "securepassword"
-}
-```
+### Sign up flow
+![Sign up flow](src/assets/signup.png)
+### Profile flow
+![Profile flow](src/assets/profile.png)
+### People near me
+![People near me](src/assets/people_near_me.png)
+### Matches
+![User matches](src/assets/matches.png)
+### Search
+![Search](src/assets/search.png)
+### Messages
+![Messages](src/assets/message.png)
+### Messages detail
+![Messages detail](src/assets/messages3.png)
 
-**Response:**
-
-```json
-{
-  "message": "Account created successfully!",
-  "user_id": 1
-}
-```
-
-#### POST `/api/login`
-
-Authenticate user login.
-
-**Request Body:**
-
-```json
-{
-  "email": "user@example.com",
-  "password": "securepassword"
-}
-```
-
-**Response:**
-
-```json
-{
-  "message": "Logged in successfully!",
-  "user_id": 1
-}
-```
-
-#### POST `/api/logout`
-
-Logout current user.
-
-**Response:**
-
-```json
-{
-  "message": "Logged out successfully!"
-}
-```
-
-### Profile Endpoints
-
-#### GET `/api/profile`
-
-Get current user's profile.
-
-**Response:**
-
-```json
-{
-  "first_name": "John",
-  "last_name": "Doe",
-  "date_of_birth": "1990-01-01",
-  "gender": "male",
-  "bio": "Hello world!",
-  "location": "New York",
-  "occupation": "Developer",
-  "education_level": "Bachelor's",
-  "relationship_goal": "Long-term"
-}
-```
-
-#### POST `/api/profile`
-
-Update user profile.
-
-**Request Body:**
-
-```json
-{
-  "first_name": "John",
-  "last_name": "Doe",
-  "bio": "Updated bio",
-  "location": "New York"
-}
-```
-
-### Other Endpoints
-
-- `POST /api/upload-photo` - Upload profile picture
-- `POST /api/password-reset` - Request password reset
-- `GET/POST /api/preferences` - Manage match preferences
-- `POST /api/message` - Send messages
-- `POST /api/report` - Report users
 
 ## 🏗 Project Structure
 
 ```
-├── app/                    # Flask backend
-│   ├── __init__.py        # App factory
-│   ├── model.py           # Database models
-│   ├── forms.py           # WTForms
-│   ├── views.py           # API routes
-│   └── config.py          # Configuration
-├── src/                    # Vue.js frontend
-│   ├── views/             # Page components
-│   ├── components/        # Reusable components
-│   ├── router/            # Vue Router config
-│   └── main.js            # App entry point
-├── public/                 # Static assets
-├── requirements.txt        # Python dependencies
-└── package.json           # Node dependencies
+├── app/                 # Flask application
+│   ├── __init__.py      # App + extensions (db, login, CORS)
+│   ├── config.py        # Settings from environment
+│   ├── views.py         # REST routes
+│   ├── model.py         # SQLAlchemy models
+│   ├── forms.py         # WTForms validation
+│   └── static/uploads/  # Uploaded profile images (gitignored in practice)
+├── migrations/          # Alembic / Flask-Migrate revisions
+├── src/                 # Vue 3 SPA
+│   ├── components/
+│   ├── views/
+│   ├── router/
+│   ├── stores/          # Pinia
+│   └── services/        # Axios client + media URL helpers
+├── requirements.txt
+├── package.json
+└── README.md
 ```
 
 ## 🚀 Deployment
@@ -256,7 +179,3 @@ npm run build
 4. Add tests if applicable
 5. Submit a pull request
 
-## 📄 License
-
-This project is licensed under the MIT License.
-Set u
