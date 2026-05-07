@@ -89,7 +89,7 @@
         <div v-else class="matches-grid">
           <div
             v-for="user in filteredMatches"
-            :key="user.id"
+            :key="user.userId ?? user.id"
             class="match-card"
           >
             <div class="card-photo-wrap">
@@ -99,16 +99,17 @@
             <div class="card-body">
               <div class="card-name">{{ user.firstName }} {{ user.lastName }}, {{ user.age }}</div>
               <div class="card-location">📍 {{ user.location }}</div>
+              <div v-if="formatDistanceLine(user)" class="card-distance">{{ formatDistanceLine(user) }}</div>
               <p class="card-bio">{{ user.bio }}</p>
               <div class="card-interests">
                 <span v-for="tag in user.interests.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
               </div>
             </div>
             <div class="card-actions">
-              <button class="btn-like" @click="handleLike(user.id)" title="Like">
+              <button class="btn-like" @click="handleLike(user.userId ?? user.id)" title="Like">
                 ❤️ Like
               </button>
-              <button class="btn-pass" @click="handlePass(user.id)" title="Pass">
+              <button class="btn-pass" @click="handlePass(user.userId ?? user.id)" title="Pass">
                 Pass
               </button>
             </div>
@@ -145,6 +146,13 @@ const initials = computed(() => {
   if (!auth.user) return '?'
   return `${auth.user.firstName?.[0] || ''}${auth.user.lastName?.[0] || ''}`.toUpperCase()
 })
+
+function formatDistanceLine(u) {
+  if (u == null || u.distanceKm == null) return ''
+  const km = `${u.distanceKm} km away`
+  if (u.distanceMi != null) return `${km} (${u.distanceMi} mi)`
+  return km
+}
 
 const filteredMatches = computed(() => {
   return potentialMatches.value.filter(u => {
@@ -184,18 +192,18 @@ async function loadMatches() {
 async function handleLike(userId) {
   try {
     await matchesStore.likeUser(userId)
-    potentialMatches.value = potentialMatches.value.filter(u => u.id !== userId)
+    potentialMatches.value = potentialMatches.value.filter(u => (u.userId ?? u.id) !== userId)
   } catch {
-    potentialMatches.value = potentialMatches.value.filter(u => u.id !== userId)
+    potentialMatches.value = potentialMatches.value.filter(u => (u.userId ?? u.id) !== userId)
   }
 }
 
 async function handlePass(userId) {
   try {
     await matchesStore.passUser(userId)
-    potentialMatches.value = potentialMatches.value.filter(u => u.id !== userId)
+    potentialMatches.value = potentialMatches.value.filter(u => (u.userId ?? u.id) !== userId)
   } catch {
-    potentialMatches.value = potentialMatches.value.filter(u => u.id !== userId)
+    potentialMatches.value = potentialMatches.value.filter(u => (u.userId ?? u.id) !== userId)
   }
 }
 
@@ -493,6 +501,13 @@ onMounted(loadMatches)
   font-family: 'DM Sans', sans-serif;
   font-size: 0.8rem;
   color: #8b7fa0;
+  margin-bottom: 0.25rem;
+}
+
+.card-distance {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  color: #b0a0c0;
   margin-bottom: 0.5rem;
 }
 

@@ -12,7 +12,7 @@ A modern dating application built with Vue.js 3 frontend and Flask REST API back
 
 - **User Authentication**: Secure signup/login with Flask-Login
 - **User Profiles**: Comprehensive profile management with photos
-- **Matching System**: Find compatible matches based on preferences
+- **Matching System**: Find compatible matches based on preferences; `GET /api/matches`, `GET /api/matches/potential`, and **`GET /api/users`** (search) include **`distance_km`** and **`distance_mi`** when both users have latitude/longitude set (null otherwise).
 - **Real-time Messaging**: Chat with matches
 - **Photo Uploads**: Profile picture management
 - **Responsive Design**: Mobile-friendly Vue.js interface

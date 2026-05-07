@@ -56,6 +56,8 @@ export const useSearchStore = defineStore('search', () => {
       interests: user.interests || [],
       photo: profilePhotoUrl(user.profile_photo),
       matchScore: user.match_score ?? null,
+      distanceKm: user.distance_km ?? null,
+      distanceMi: user.distance_mi ?? null,
     }
   }
 

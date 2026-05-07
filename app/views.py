@@ -33,6 +33,45 @@ def safe_rollback():
         app.logger.exception("Rollback failed")
 
 
+EARTH_RADIUS_KM = 6371
+
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    """Great-circle distance in km (spherical Earth, radius EARTH_RADIUS_KM)."""
+    r = EARTH_RADIUS_KM
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lam = math.radians(lon2 - lon1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lam / 2) ** 2
+    return 2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def distance_km_mi_for_profiles(from_profile, to_profile):
+    """
+    Haversine distance between two profiles. Returns (distance_km, distance_mi), each
+    rounded to 1 decimal, or (None, None) if either profile lacks latitude/longitude.
+    """
+    if not from_profile or not to_profile:
+        return None, None
+    if (
+        from_profile.latitude is None
+        or from_profile.longitude is None
+        or to_profile.latitude is None
+        or to_profile.longitude is None
+    ):
+        return None, None
+    km = haversine_km(
+        float(from_profile.latitude),
+        float(from_profile.longitude),
+        float(to_profile.latitude),
+        float(to_profile.longitude),
+    )
+    km_r = round(km, 1)
+    mi_r = round(km * 0.621371, 1)
+    return km_r, mi_r
+
+
 def profile_to_dict(profile, include_user=False):
     """Serialize a Profile + its User to a dict the frontend expects."""
     age = None
@@ -366,7 +405,14 @@ def get_users():
         else:
             profiles.sort(key=lambda p: p.updated_at or datetime.min, reverse=True)
 
-        result = [profile_to_dict(p) for p in profiles]
+        my_profile = current_user.profile
+        result = []
+        for p in profiles:
+            d = profile_to_dict(p)
+            dk, dm = distance_km_mi_for_profiles(my_profile, p)
+            d["distance_km"] = dk
+            d["distance_mi"] = dm
+            result.append(d)
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"errors": [str(e)]}), 500
@@ -417,10 +463,13 @@ def get_matches():
             m = wrap["match"]
             other_profile = Profile.query.filter_by(user_id=other_user_id).first()
             if other_profile:
+                dk, dm = distance_km_mi_for_profiles(current_user.profile, other_profile)
                 result.append({
                     "id": m.id,
                     "matched_at": m.created_at.isoformat(),
-                    "user": profile_to_dict(other_profile)
+                    "user": profile_to_dict(other_profile),
+                    "distance_km": dk,
+                    "distance_mi": dm,
                 })
 
         return jsonify(result), 200
@@ -467,15 +516,6 @@ def get_potential_matches():
             today = date.today()
             dob = p.date_of_birth
             return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
-
-        def haversine_km(lat1, lon1, lat2, lon2):
-            r = 6371  # Earth radius in km
-            phi1 = math.radians(lat1)
-            phi2 = math.radians(lat2)
-            d_phi = math.radians(lat2 - lat1)
-            d_lam = math.radians(lon2 - lon1)
-            a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lam / 2) ** 2
-            return 2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
         # Apply age preference filtering if present
         if my_profile:
@@ -536,6 +576,9 @@ def get_potential_matches():
         for p in profiles:
             d = profile_to_dict(p)
             d["match_score"] = match_score(p)
+            dk, dm = distance_km_mi_for_profiles(my_profile, p)
+            d["distance_km"] = dk
+            d["distance_mi"] = dm
             result.append(d)
 
         result.sort(key=lambda x: x["match_score"], reverse=True)

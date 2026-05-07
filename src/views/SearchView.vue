@@ -100,6 +100,7 @@
             <div class="result-body">
               <div class="result-name">{{ user.firstName }} {{ user.lastName }}, {{ user.age }}</div>
               <div class="result-location">📍 {{ user.location }}</div>
+              <div v-if="formatDistanceLine(user)" class="result-distance">{{ formatDistanceLine(user) }}</div>
               <p class="result-bio">{{ user.bio }}</p>
               <div class="result-interests">
                 <span v-for="tag in (user.interests || []).slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
@@ -135,6 +136,13 @@ const allInterests = [
 ]
 
 const results = computed(() => searchStore.results)
+
+function formatDistanceLine(u) {
+  if (u == null || u.distanceKm == null) return ''
+  const km = `${u.distanceKm} km away`
+  if (u.distanceMi != null) return `${km} (${u.distanceMi} mi)`
+  return km
+}
 
 function toggleInterest(interest) {
   const idx = filters.interests.indexOf(interest)
@@ -357,6 +365,13 @@ function handleReset() {
   font-family: 'DM Sans', sans-serif;
   font-size: 0.78rem;
   color: #8b7fa0;
+  margin-bottom: 0.25rem;
+}
+
+.result-distance {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.72rem;
+  color: #b0a0c0;
   margin-bottom: 0.5rem;
 }
 

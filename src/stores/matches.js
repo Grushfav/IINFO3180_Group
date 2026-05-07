@@ -46,7 +46,7 @@ export const useMatchesStore = defineStore('matches', () => {
     error.value = null
     try {
       const response = await api.post(`/api/matches/like/${userId}`)
-      potentialMatches.value = potentialMatches.value.filter(m => m.user_id !== userId)
+      potentialMatches.value = potentialMatches.value.filter(m => m.userId !== userId)
       if (response.data.matched) {
         await fetchMatches()
       }
@@ -65,7 +65,7 @@ export const useMatchesStore = defineStore('matches', () => {
     error.value = null
     try {
       await api.post(`/api/matches/pass/${userId}`)
-      potentialMatches.value = potentialMatches.value.filter(m => m.user_id !== userId)
+      potentialMatches.value = potentialMatches.value.filter(m => m.userId !== userId)
     } catch (err) {
       error.value = err.response?.data?.errors?.[0] || 'Failed to pass user'
       throw err
@@ -100,6 +100,8 @@ export const useMatchesStore = defineStore('matches', () => {
       matchedAt: match.matched_at,
       user: normalizeUser(match.user),
       matchScore: match.match_score ?? null,
+      distanceKm: match.distance_km ?? null,
+      distanceMi: match.distance_mi ?? null,
     }
   }
 
@@ -115,6 +117,8 @@ export const useMatchesStore = defineStore('matches', () => {
       interests: profile.interests || [],
       photo: profilePhotoUrl(profile.profile_photo),
       matchScore: profile.match_score ?? null,
+      distanceKm: profile.distance_km ?? null,
+      distanceMi: profile.distance_mi ?? null,
     }
   }
 

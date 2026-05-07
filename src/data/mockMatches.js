@@ -12,7 +12,9 @@ export const mockMatches = [
       interests: ['hiking', 'travel', 'photography']
     },
     matchedAt: '2026-04-01T10:00:00Z',
-    matchScore: 88
+    matchScore: 88,
+    distanceKm: 12.4,
+    distanceMi: 7.7
   },
   {
     id: 2,
@@ -27,6 +29,8 @@ export const mockMatches = [
       interests: ['art', 'music', 'travel']
     },
     matchedAt: '2026-04-02T12:00:00Z',
-    matchScore: 80
+    matchScore: 80,
+    distanceKm: null,
+    distanceMi: null
   }
 ]

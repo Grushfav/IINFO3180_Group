@@ -33,8 +33,9 @@
           <div v-else class="match-avatar match-avatar-placeholder" aria-hidden="true">
             {{ initialsFor(match.user) }}
           </div>
-          <div class="match-info">
+            <div class="match-info">
             <div class="match-name">{{ match.user.firstName }} {{ match.user.lastName }}, {{ formatAge(match.user.age) }}</div>
+            <p v-if="distancePrimary(match)" class="match-distance">{{ distancePrimary(match) }}</p>
             <p class="match-bio">{{ match.user.bio }}</p>
             <div v-if="match.user.interests?.length" class="match-interests">
               <span v-for="tag in match.user.interests.slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
@@ -83,6 +84,13 @@ function formatAge(age) {
 function initialsFor(user) {
   if (!user) return '?'
   return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || '?'
+}
+
+function distancePrimary(match) {
+  if (match?.distanceKm == null) return ''
+  const km = `${match.distanceKm} km away`
+  if (match.distanceMi != null) return `${km} (${match.distanceMi} mi)`
+  return km
 }
 
 onMounted(async () => {
@@ -181,6 +189,13 @@ onMounted(async () => {
   font-size: 1.1rem;
   color: #1a1025;
   margin-bottom: 0.3rem;
+}
+
+.match-distance {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.75rem;
+  color: #b0a0c0;
+  margin: 0 0 0.35rem;
 }
 
 .match-bio {
