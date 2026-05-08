@@ -43,6 +43,8 @@ A modern dating application built with Vue.js 3 frontend and Flask REST API back
 
 ## 🔧 Installation & Setup
 
+The API lives in **`backend/`** and the Vue app in **`frontend/`**. Run each from its own folder (two terminals).
+
 ### Backend Setup
 
 1. **Clone the repository**
@@ -52,7 +54,7 @@ A modern dating application built with Vue.js 3 frontend and Flask REST API back
    cd INFO3180-MAIN-GROUP-PROJECT
    ```
 
-2. **Create virtual environment**
+2. **Create virtual environment** (from the repo root)
 
    ```bash
    python -m venv venv
@@ -62,92 +64,126 @@ A modern dating application built with Vue.js 3 frontend and Flask REST API back
    source venv/bin/activate
    ```
 
-3. **Install Python dependencies**
+3. **Install Python dependencies** (from **`backend/`**)
 
    ```bash
+   cd backend
    pip install -r requirements.txt
    ```
 
-4. **Database setup**
+4. **Environment and database**
+
+   Create **`backend/.env`** (optional but recommended) or set variables in your shell:
 
    ```bash
-   # Set environment variables (create .env file)
-   export FLASK_APP=app
-   export FLASK_ENV=development
-   export DATABASE_URL=postgresql://username:password@localhost/dating_app
+   FLASK_APP=app
+   FLASK_DEBUG=1
+   DATABASE_URL=postgresql://username:password@localhost:5432/dating_app
+   SECRET_KEY=change-me-in-dev
+   ```
 
-   # Initialize database
-   flask db init
-   flask db migrate
+   **Windows (PowerShell)** example:
+
+   ```powershell
+   cd backend
+   $env:FLASK_APP = "app"
+   $env:FLASK_DEBUG = "1"
+   $env:DATABASE_URL = "postgresql://username:password@localhost:5432/dating_app"
+   ```
+
+   This repo already includes Alembic migrations under **`backend/migrations/`**. After PostgreSQL is running and `DATABASE_URL` points at your database:
+
+   ```bash
+   cd backend
    flask db upgrade
    ```
 
-5. **Run Flask API**
+   Do **not** run `flask db init` unless you are replacing migrations from scratch (it will clash with the existing `migrations` folder).
+
+5. **Run the Flask API**
+
+   The frontend dev client defaults to **`http://localhost:8080`** (see `frontend/src/services/api.js`). Start Flask on that port:
+
    ```bash
-   flask run
+   cd backend
+   flask run --port 8080
    ```
-   API will be available at `http://localhost:5000`
+
+   API base URL: **`http://localhost:8080`** (e.g. `http://localhost:8080/api/health`).
 
 ### Frontend Setup
 
-1. **Install Node dependencies**
+1. **Install dependencies** (from **`frontend/`**)
 
    ```bash
+   cd frontend
    npm install
    ```
 
-2. **Install Axios for API calls**
+   Axios is already listed in `package.json`; no separate install step is required.
+
+2. **Optional: API URL override**
+
+   If your API is not on port 8080, create **`frontend/.env`**:
 
    ```bash
-   npm install axios
+   VITE_API_BASE_URL=http://localhost:5000
    ```
 
-3. **Start development server**
+3. **Start the dev server**
+
    ```bash
+   cd frontend
    npm run dev
    ```
-   Frontend will be available at `http://localhost:5173`
 
+   The app is served at **`http://localhost:5173`** (Vite default).
 
-Register a new user account.
+Register a new user account in the browser.
 
 ## Screenshots
 
 ### Sign up flow
-![Sign up flow](src/assets/signup.png)
+![Sign up flow](frontend/src/assets/signup.png)
 ### Profile flow
-![Profile flow](src/assets/profile.png)
+![Profile flow](frontend/src/assets/profile.png)
 ### People near me
-![People near me](src/assets/people_near_me.png)
+![People near me](frontend/src/assets/people_near_me.png)
 ### Matches
-![User matches](src/assets/matches.png)
+![User matches](frontend/src/assets/matches.png)
 ### Search
-![Search](src/assets/search.png)
+![Search](frontend/src/assets/search.png)
 ### Messages
-![Messages](src/assets/message.png)
+![Messages](frontend/src/assets/message.png)
 ### Messages detail
-![Messages detail](src/assets/messages3.png)
+![Messages detail](frontend/src/assets/messages3.png)
 
 
 ## 🏗 Project Structure
 
 ```
-├── app/                 # Flask application
-│   ├── __init__.py      # App + extensions (db, login, CORS)
-│   ├── config.py        # Settings from environment
-│   ├── views.py         # REST routes
-│   ├── model.py         # SQLAlchemy models
-│   ├── forms.py         # WTForms validation
-│   └── static/uploads/  # Uploaded profile images (gitignored in practice)
-├── migrations/          # Alembic / Flask-Migrate revisions
-├── src/                 # Vue 3 SPA
-│   ├── components/
-│   ├── views/
-│   ├── router/
-│   ├── stores/          # Pinia
-│   └── services/        # Axios client + media URL helpers
-├── requirements.txt
-├── package.json
+├── backend/
+│   ├── app/                 # Flask application
+│   │   ├── __init__.py      # App + extensions (db, login, CORS)
+│   │   ├── config.py
+│   │   ├── views.py         # REST routes
+│   │   ├── model.py
+│   │   ├── forms.py
+│   │   ├── auth_token.py
+│   │   └── static/uploads/  # Uploaded profile images
+│   ├── migrations/          # Alembic / Flask-Migrate revisions
+│   ├── requirements.txt
+│   └── wsgi.py              # Gunicorn entry (e.g. Render)
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── views/
+│   │   ├── router/
+│   │   ├── stores/          # Pinia
+│   │   └── services/       # Axios client + media URL helpers
+│   ├── package.json
+│   └── vite.config.js
+├── render.yaml
 └── README.md
 ```
 
@@ -155,21 +191,24 @@ Register a new user account.
 
 ### Backend Deployment
 
-```bash
-# Production settings
-export FLASK_ENV=production
-export DATABASE_URL=your_production_db_url
+From **`backend/`**, with `DATABASE_URL`, `SECRET_KEY`, and `CORS_ORIGINS` set for your environment:
 
-# Run with Gunicorn
-gunicorn -w 4 -b 0.0.0.0:8000 app:app
+```bash
+cd backend
+gunicorn -w 4 -b 0.0.0.0:8000 wsgi:application
 ```
+
+(On Render, use something like: `gunicorn --bind 0.0.0.0:$PORT wsgi:application` — see `render.yaml`.)
 
 ### Frontend Deployment
 
 ```bash
+cd frontend
+npm ci
 npm run build
-# Deploy dist/ folder to your web server
 ```
+
+Deploy the **`frontend/dist/`** folder (static hosting). Set **`VITE_API_BASE_URL`** at build time to your public API URL.
 
 ## 🤝 Contributing
 
