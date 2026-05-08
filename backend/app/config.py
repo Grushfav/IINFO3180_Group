@@ -1,18 +1,9 @@
 import os
-from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-
-def _origin_netloc(origin):
-    try:
-        if not origin or not str(origin).startswith("http"):
-            return ""
-        return urlparse(origin).netloc.lower()
-    except Exception:
-        return ""  
 
 class Config(object):
     """Base Config Object"""
@@ -53,29 +44,14 @@ class Config(object):
 
     # HTTPS cookies behind Render's proxy.
     _on_render = os.environ.get("RENDER", "").lower() == "true" or bool(_render_public)
-    _api_host = _origin_netloc(_render_public)
-    _nonlocal_cors_hosts = {
-        _origin_netloc(o)
-        for o in CORS_ORIGINS
-        if _origin_netloc(o) and not _origin_netloc(o).startswith(("localhost", "127."))
-    }
-    # Static site on another host (e.g. frontend-*.onrender.com) + API on drift-dater: session must be
-    # SameSite=None. Compare CORS to RENDER_EXTERNAL_URL when set; otherwise if RENDER_EXTERNAL_URL is
-    # missing (some dashboards), any non-local CORS entry implies a browser SPA on another host → None.
-    _cross_site_auto = False
-    if _on_render and _api_host:
-        for _o in CORS_ORIGINS:
-            h = _origin_netloc(_o)
-            if not h or h.startswith("localhost") or h.startswith("127."):
-                continue
-            if h != _api_host:
-                _cross_site_auto = True
-                break
-    elif _on_render and not _api_host and _nonlocal_cors_hosts:
-        _cross_site_auto = True
-    _cross_site_explicit = os.environ.get("USE_CROSS_SITE_SESSION", "").lower() in ("1", "true", "yes")
     _same_site_only = os.environ.get("SAME_SITE_SESSION_ONLY", "").lower() in ("1", "true", "yes")
-    _session_cross_site = not _same_site_only and (_cross_site_explicit or _cross_site_auto)
     if _on_render:
         SESSION_COOKIE_SECURE = True
-        SESSION_COOKIE_SAMESITE = "None" if _session_cross_site else "Lax"
+        # Split SPA + API on different hosts (e.g. two *.onrender.com URLs) needs SameSite=None for
+        # credentialed XHR/fetch; SameSite=Lax cookies are not sent on those cross-site requests, so
+        # login returns 200 but the next GET /api/profile gets 401. Default to None on Render unless
+        # SAME_SITE_SESSION_ONLY forces Lax (rare; same-host-only setups).
+        if _same_site_only:
+            SESSION_COOKIE_SAMESITE = "Lax"
+        else:
+            SESSION_COOKIE_SAMESITE = "None"
