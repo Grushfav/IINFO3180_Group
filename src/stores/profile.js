@@ -50,8 +50,12 @@ export const useProfileStore = defineStore('profile', () => {
         max_distance_km: formData.maxDistanceKm,
         latitude: formData.latitude,
         longitude: formData.longitude,
-        interests: formData.interests || [],
         is_public: formData.isPublic,
+      }
+      // Backend enforces "at least 3 interests" when the `interests` key exists in payload.
+      // Setup screens may intentionally omit interests (skip), so allow the caller to disable it.
+      if (formData.includeInterests !== false) {
+        payload.interests = formData.interests || []
       }
       const response = await api.post('/api/profile', payload)
       // Refresh auth store user so header updates

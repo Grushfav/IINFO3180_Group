@@ -163,8 +163,16 @@ async function handleRegister() {
       gender: form.value.gender,
       looking_for: form.value.looking_for,
     })
-    successMsg.value = 'Account created! Redirecting to login...'
-    setTimeout(() => router.push('/login'), 1500)
+
+    // Auto-login after registration then redirect to the profile setup flow.
+    await auth.login({
+      email: form.value.email,
+      password: form.value.password,
+      remember: false,
+    })
+
+    successMsg.value = ''
+    router.push('/profile/setup')
   } catch (e) {
     authError.value = auth.error || 'Registration failed. Please try again.'
   }
