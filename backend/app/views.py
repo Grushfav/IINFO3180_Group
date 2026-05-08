@@ -133,6 +133,27 @@ def api_health():
     return jsonify(message="DriftDater API is running"), 200
 
 
+@app.route("/api/health/db")
+def api_health_db():
+    """Ping Postgres using the same SQLAlchemy engine as the app (debugging deploy / DATABASE_URL)."""
+    from sqlalchemy import text
+
+    env_url_set = bool(os.environ.get("DATABASE_URL", "").strip())
+    try:
+        db.session.execute(text("SELECT 1"))
+        return jsonify(
+            database="ok",
+            database_url_env_set=env_url_set,
+        ), 200
+    except Exception as e:
+        app.logger.exception("Database health check failed")
+        return jsonify(
+            database="error",
+            database_url_env_set=env_url_set,
+            error=str(e),
+        ), 503
+
+
 @app.route('/')
 def index():
     if _spa_available():
