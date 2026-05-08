@@ -18,7 +18,8 @@ class Config(object):
     """Base Config Object"""
     DEBUG = False
     SECRET_KEY = os.environ.get('SECRET_KEY', 'Som3$ec5etK*y')
-    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'app/static/uploads')
+    # When deployed from backend/ as service root, static uploads live at backend/app/static/uploads.
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'backend/app/static/uploads')
     
     # Get DATABASE_URL from environment
     database_url = os.environ.get('DATABASE_URL', '')

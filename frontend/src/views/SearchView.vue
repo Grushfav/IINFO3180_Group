@@ -106,6 +106,26 @@
                 <span v-for="tag in (user.interests || []).slice(0, 3)" :key="tag" class="tag">{{ tag }}</span>
               </div>
             </div>
+
+            <div v-if="!isAlreadyMatched(user.userId ?? user.id)" class="result-actions">
+              <button
+                class="btn-like"
+                :disabled="matchesStore.loading"
+                @click="handleLike(user.userId ?? user.id)"
+              >
+                ❤️ Like
+              </button>
+              <button
+                class="btn-pass"
+                :disabled="matchesStore.loading"
+                @click="handlePass(user.userId ?? user.id)"
+              >
+                Pass
+              </button>
+            </div>
+            <div v-else class="result-actions result-actions--matched">
+              <span class="matched-pill">Matched</span>
+            </div>
           </div>
         </div>
       </div>
@@ -114,14 +134,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useSearchStore } from '../stores/search'
+import { useMatchesStore } from '../stores/matches'
 import { mockUsers } from '../data/mockUsers'
 import { JAMAICAN_PARISHES } from '../data/jamaicanParishes'
 
 const parishes = JAMAICAN_PARISHES
 
 const searchStore = useSearchStore()
+const matchesStore = useMatchesStore()
 const hasSearched = ref(false)
 
 const filters = reactive({
@@ -136,6 +158,20 @@ const allInterests = [
 ]
 
 const results = computed(() => searchStore.results)
+
+const matchedUserIdSet = computed(() => {
+  const set = new Set()
+  for (const m of matchesStore.matches) {
+    const id = m?.user?.id ?? m?.user?.userId
+    if (id != null) set.add(String(id))
+  }
+  return set
+})
+
+function isAlreadyMatched(userId) {
+  if (userId == null) return false
+  return matchedUserIdSet.value.has(String(userId))
+}
 
 function formatDistanceLine(u) {
   if (u == null || u.distanceKm == null) return ''
@@ -182,6 +218,41 @@ function handleReset() {
   searchStore.resetFilters()
   hasSearched.value = false
 }
+
+function removeFromResults(userId) {
+  searchStore.results = searchStore.results.filter(u => String(u.userId ?? u.id) !== String(userId))
+}
+
+async function handleLike(userId) {
+  try {
+    await matchesStore.likeUser(userId)
+  } catch {
+    // ignore; still remove from UI to match Home behavior
+  } finally {
+    removeFromResults(userId)
+  }
+}
+
+async function handlePass(userId) {
+  try {
+    await matchesStore.passUser(userId)
+  } catch {
+    // ignore; still remove from UI to match Home behavior
+  } finally {
+    removeFromResults(userId)
+  }
+}
+
+onMounted(async () => {
+  // Ensure we can hide actions for already-matched users.
+  try {
+    if (matchesStore.matches.length === 0) {
+      await matchesStore.fetchMatches()
+    }
+  } catch {
+    // non-fatal; we just won't hide actions until matches load
+  }
+})
 </script>
 
 <style scoped>
@@ -397,6 +468,61 @@ function handleReset() {
   padding: 0.18rem 0.5rem;
   border-radius: 14px;
 }
+
+.result-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem 0.9rem;
+  border-top: 1px solid #f5eff8;
+}
+
+.result-actions--matched {
+  justify-content: flex-end;
+}
+
+.matched-pill {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1a7a36;
+  background: rgba(52, 199, 89, 0.08);
+  border: 1px solid rgba(52, 199, 89, 0.22);
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+}
+
+.btn-like {
+  flex: 1;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 500;
+  background: linear-gradient(135deg, #e85d75, #f4845f);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.6rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-like:hover:not(:disabled) { opacity: 0.88; }
+.btn-like:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-pass {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 500;
+  background: #f0eaf6;
+  color: #8b7fa0;
+  border: none;
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-pass:hover:not(:disabled) { background: #e4dced; }
+.btn-pass:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* Loading / empty */
 .loading-state, .empty-state {

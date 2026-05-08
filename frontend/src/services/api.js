@@ -1,7 +1,8 @@
 import axios from 'axios'
 
-// Dev: point at Flask (e.g. http://localhost:8080). Prod: leave VITE_API_BASE_URL unset when the
-// API is served from the same origin as the SPA (Flask hosts dist/) — fixes mobile Safari cookies.
+// Dev: point at Flask (e.g. http://localhost:8080).
+// Prod (Render split deploy): set VITE_API_BASE_URL to your backend service URL, e.g.
+// https://your-api.onrender.com
 const envBase = import.meta.env.VITE_API_BASE_URL
 const baseURL =
   typeof envBase === 'string' && envBase.length > 0
