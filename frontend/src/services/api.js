@@ -11,6 +11,15 @@ const baseURL =
       ? ''
       : 'http://localhost:8080'
 
+if (import.meta.env.PROD && (!envBase || String(envBase).trim().length === 0)) {
+  // In production, an empty baseURL means "same-origin". That's only correct if the API is served
+  // from the same host as the SPA. If you're deploying the API separately, set VITE_API_BASE_URL
+  // in your frontend build environment.
+  console.warn(
+    '[api] VITE_API_BASE_URL is not set in production; requests will go to same-origin (/api/*).'
+  )
+}
+
 const api = axios.create({
   baseURL,
   withCredentials: true, // Required for Flask-Login session cookies

@@ -23,8 +23,8 @@
 
 <script setup>
 import { ref } from "vue";
-import axios from "axios";
 import { useRouter } from "vue-router";
+import api from "../services/api";
 
 const email = ref("");
 const password = ref("");
@@ -32,15 +32,10 @@ const router = useRouter();
 
 const handleLogin = async () => {
   try {
-    const response = await axios.post(
-      "/api/login",
-      {
-        email: email.value,
-        password: password.value,
-      },
-      { withCredentials: true },
-    );
-    console.log(email.value + password.value);
+    const response = await api.post("/api/login", {
+      email: email.value,
+      password: password.value,
+    });
     if (response.status === 200) {
       router.push("/dashboard");
     }

@@ -41,8 +41,8 @@
 
 <script setup>
 import { ref } from "vue";
-import axios from "axios";
 import { useRouter } from "vue-router";
+import api from "../services/api";
 
 const email = ref("");
 const username = ref("");
@@ -56,7 +56,7 @@ const handleSignup = async () => {
     return;
   }
   try {
-    const response = await axios.post("/api/signup", {
+    const response = await api.post("/api/signup", {
       email: email.value,
       username: username.value,
       password: password.value,

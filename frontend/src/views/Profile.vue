@@ -78,10 +78,10 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-import axios from "axios";
 import { useRouter } from "vue-router";
 import AppHeader from "../components/AppHeader.vue";
 import AppFooter from "../components/AppFooter.vue";
+import api from "../services/api";
 
 const router = useRouter();
 const loading = ref(false);
@@ -99,7 +99,7 @@ const profile = ref({
 
 const loadProfile = async () => {
   try {
-    const response = await axios.get("/api/profile");
+    const response = await api.get("/api/profile");
     profile.value = response.data;
   } catch (err) {
     console.error("Failed to load profile:", err);
@@ -113,7 +113,7 @@ const loadProfile = async () => {
 const handleSubmit = async () => {
   loading.value = true;
   try {
-    await axios.post("/api/profile", profile.value);
+    await api.post("/api/profile", profile.value);
     alert("Profile updated successfully!");
   } catch (err) {
     if (err.response?.data?.errors) {
