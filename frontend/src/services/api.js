@@ -1,5 +1,8 @@
 import axios from 'axios'
 
+/** Session cookie fallback for split frontend/API hosts (cross-site cookies often blocked). */
+export const AUTH_TOKEN_STORAGE_KEY = 'dd_auth_token'
+
 // Dev: point at Flask (e.g. http://localhost:8080).
 // Prod (Render split deploy): set VITE_API_BASE_URL to your backend service URL, e.g.
 // https://your-api.onrender.com
@@ -23,6 +26,18 @@ if (import.meta.env.PROD && (!envBase || String(envBase).trim().length === 0)) {
 const api = axios.create({
   baseURL,
   withCredentials: true, // Required for Flask-Login session cookies
+})
+
+api.interceptors.request.use((config) => {
+  try {
+    const t = sessionStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
+    if (t) {
+      config.headers.Authorization = `Bearer ${t}`
+    }
+  } catch {
+    /* ignore */
+  }
+  return config
 })
 
 export function buildMediaUrl(path) {
@@ -58,6 +73,7 @@ api.interceptors.response.use(
       // Session expired — clear local storage but don't redirect here
       // Let the router guard handle the redirect
       sessionStorage.removeItem('dd_user')
+      sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
     }
     return Promise.reject(error)
   }

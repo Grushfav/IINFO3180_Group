@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api, { profilePhotoUrl } from '../services/api'
+import api, { profilePhotoUrl, AUTH_TOKEN_STORAGE_KEY } from '../services/api'
 
 function readStoredUser() {
   try {
@@ -60,6 +60,12 @@ export const useAuthStore = defineStore('auth', () => {
         ...credentials,
         remember: credentials.remember ?? false,
       })
+      const token = loginRes.data?.token
+      if (token) {
+        sessionStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token)
+      } else {
+        sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+      }
       // After login, fetch the profile to get name/photo etc.
       await fetchCurrentUser()
       if (!user.value) {
@@ -92,6 +98,7 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       user.value = null
       sessionStorage.removeItem('dd_user')
+      sessionStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
       loading.value = false
     }
   }

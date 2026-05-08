@@ -46,6 +46,28 @@ def load_user(user_id):
     except (TypeError, ValueError):
         return None
 
+
+@login_manager.request_loader
+def load_user_from_request(request):
+    """Fallback when cross-site session cookies are not stored or sent (common on split SPA/API deploys)."""
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    raw = auth_header[7:].strip()
+    if not raw:
+        return None
+    from .auth_token import verify_token
+    from .model import User
+
+    uid = verify_token(app.config.get("SECRET_KEY") or "", raw)
+    if uid is None:
+        return None
+    try:
+        return db.session.get(User, int(uid))
+    except (TypeError, ValueError):
+        return None
+
+
 from . import views
 
 

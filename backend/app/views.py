@@ -198,12 +198,16 @@ def login():
             user = User.query.filter_by(email=form.email.data).first()
             if user and user.check_password(form.password.data):
                 login_user(user, remember=form.remember.data)
-                
+
                 user.last_active = datetime.utcnow()
                 db.session.commit()
+                from .auth_token import issue_token
+
+                token = issue_token(app.config["SECRET_KEY"], user.id)
                 return jsonify({
                     "message": "Logged in successfully!",
-                    "user_id": user.id
+                    "user_id": user.id,
+                    "token": token,
                 }), 200
             return jsonify({"error": "Invalid email or password"}), 401
         return jsonify({"errors": form_errors(form)}), 400
